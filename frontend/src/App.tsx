@@ -1,122 +1,129 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AutoContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Header } from './components/Header/Header';
+import { LoginPage } from './pages/LoginPage';
+import { ClientDashboard } from './pages/ClientDashboard';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { INITIAL_APPLICATIONS } from './data/mockData';
+import type { CreditApplication } from './types/credit';
 
-function App() {
-  const [count, setCount] = useState(0)
+const AppRoutes: React.FC = () => {
+  const { currentUser, login, logout } = useAuth();
+  const [applications, setApplications] = useState<CreditApplication[]>(INITIAL_APPLICATIONS);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Шапка отображается только авторизованным */}
+      {currentUser && <Header currentUser={currentUser} onLogout={logout} />}
 
-      <div className="ticks"></div>
+      <main style={{ flex: 1 }}>
+        <Routes>
+          {/* Публичный вход */}
+          <Route path="/login" element={<LoginPage onLogin={login} />} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          {/* Корень: редирект по роли или на /login */}
+          <Route
+            path="/"
+            element={
+              <Navigate
+                to={currentUser ? (currentUser.role === 'bank' ? '/bank' : '/client') : '/login'}
+                replace
+              />
+            }
+          />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
+          {/* ================= КОНТУР КЛИЕНТА ================= */}
+          {/* /client — витрина и калькулятор */}
+          <Route
+            path="/client"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <ClientDashboard applications={applications} />
+              </ProtectedRoute>
+            }
+          />
 
-export default App
+          {/* /client/apply — подача заявки */}
+          <Route
+            path="/client/apply"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <div style={{ padding: '60px', textAlign: 'center' }}>
+                  <h2>Форма подачи заявки (/client/apply)</h2>
+                  <p style={{ color: '#6F7985' }}>Тут будет ввод ИНН и автоподтягивание данных</p>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* /client/applications — список всех заявок пользователя */}
+          <Route
+            path="/client/applications"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <ClientDashboard applications={applications} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* /client/applications/:id — трекер статуса, оффер, подписание */}
+          <Route
+            path="/client/applications/:id"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <div style={{ padding: '60px', textAlign: 'center' }}>
+                  <h2>Трекер статуса заявки (/client/applications/:id)</h2>
+                  <p style={{ color: '#6F7985' }}>Таймлайн статусов, оффер банка и подписание</p>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ================= КОНТУР БАНКА ================= */}
+          {/* /bank — дашборд кредитного инспектора */}
+          <Route
+            path="/bank"
+            element={
+              <ProtectedRoute requiredRole="bank">
+                <div style={{ padding: '60px', textAlign: 'center' }}>
+                  <h2>Рабочее место банка (/bank)</h2>
+                  <p style={{ color: '#6F7985' }}>Таблица всех входящих заявок бизнеса</p>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* /bank/applications/:id — детальная карточка разбора */}
+          <Route
+            path="/bank/applications/:id"
+            element={
+              <ProtectedRoute requiredRole="bank">
+                <div style={{ padding: '60px', textAlign: 'center' }}>
+                  <h2>Карточка разбора заявки андеррайтером (/bank/applications/:id)</h2>
+                  <p style={{ color: '#6F7985' }}>Скоринг, ФНС, БКИ, AI-резюме и кнопки решений</p>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
+
+export default App;

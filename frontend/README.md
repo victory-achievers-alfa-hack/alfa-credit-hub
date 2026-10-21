@@ -30,3 +30,19 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+
+/login                      -> Страница входа (admin/admin или Альфа-ID)
+/                           -> Редирект на /client (если авторизован) или на /login
+
+--- Контур Клиента (доступен только с role === 'client') ---
+/client                     -> Витрина кредитов и умный калькулятор
+/client/apply               -> Форма подачи заявки с автоподтягиванием по ИНН
+/client/applications        -> Список заявок текущего предпринимателя
+/client/applications/:id    -> Трекер статуса, оффер, подписание договора
+
+--- Контур Банка (доступен только с role === 'bank') ---
+/bank                       -> Дашборд андеррайтера (список всех заявок)
+/bank/applications/:id      -> Карточка разбора заявки (скоринг, XAI, решение)
+
+*                           -> 404 (в стиле Альфа-Банка)
