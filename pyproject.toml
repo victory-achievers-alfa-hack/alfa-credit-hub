@@ -1,0 +1,20 @@
+[project]
+name = "alfa-credit-hub"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.159.1",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "sqlalchemy>=2.1.6",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+alfa-credit-hub = "alfa_credit_hub:main"
+
+[tool.uv]
+package = false
