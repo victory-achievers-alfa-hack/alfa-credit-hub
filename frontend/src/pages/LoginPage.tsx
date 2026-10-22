@@ -1,294 +1,144 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { SYNTHETIC_CLIENTS, type UserProfile } from '../data/mockData';
+import { useState, type FormEvent } from 'react';
+import { Button } from '@alfalab/core-components/button';
+import { Input } from '@alfalab/core-components/input';
+import { Typography } from '@alfalab/core-components/typography';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AutoContext';
+import { DEMO_USERS } from '../data/mockData';
 
-interface LoginPageProps {
-  onLogin: (user: UserProfile) => void;
-}
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+export function LoginPage() {
+  const { currentUser, login, loginAs } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [showAlfaIdModal, setShowAlfaIdModal] = useState(false);
+  const [email, setEmail] = useState('client@demo.ru');
+  const [password, setPassword] = useState('123456');
+  const [emailError, setEmailError] = useState('');
+  const [authError, setAuthError] = useState('');
 
-  // Вход для сотрудника банка (admin / admin)
-  const handleBankLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username.trim() === 'admin' && password.trim() === 'admin') {
-      const bankUser: UserProfile = {
-        id: 'bank-admin',
-        role: 'bank',
-        name: 'Андеррайтер: Кредитный отдел',
-        companyName: 'АО «АЛЬФА-БАНК»',
-        avatarText: 'АБ',
-      };
-      onLogin(bankUser);
-      navigate('/bank');
-    } else {
-      setError('Неверный логин или пароль для служебного входа (подсказка: admin / admin)');
+  if (currentUser) {
+    return <Navigate to={currentUser.role === 'bank' ? '/bank' : '/client'} replace />;
+  }
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!EMAIL_PATTERN.test(email)) {
+      setEmailError('Введите корректный email латиницей');
+      return;
     }
+
+    const result = login(email, password);
+    if (!result.success) {
+      setAuthError(result.message ?? 'Не удалось войти');
+      return;
+    }
+
+    const user = DEMO_USERS.find((candidate) => candidate.email === email.trim().toLowerCase());
+    navigate(user?.role === 'bank' ? '/bank' : '/client');
   };
 
-  // Вход за синтетического клиента через Альфа-ID
-  const handleSelectClient = (client: UserProfile) => {
-    onLogin(client);
-    setShowAlfaIdModal(false);
-    navigate('/client');
+  const handleQuickLogin = (userId: string, role: 'client' | 'bank') => {
+    loginAs(userId);
+    navigate(role === 'bank' ? '/bank' : '/client');
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#F3F4F7',
-      padding: '20px',
-      position: 'relative',
-    }}>
-      <div style={{
-        backgroundColor: '#FFFFFF',
-        borderRadius: '20px',
-        width: '100%',
-        maxWidth: '440px',
-        padding: '40px 36px',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.06)',
-        border: '1px solid #E5E7EB',
-      }}>
-        {/* Логотип Альфа-Банка */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px' }}>
-          <div style={{
-            backgroundColor: '#EF3124',
-            color: '#FFFFFF',
-            width: '42px',
-            height: '42px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '24px',
-          }}>
-            А
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.3px', color: '#0B1F35' }}>
-              АЛЬФА-БАНК <span style={{ color: '#EF3124' }}>БИЗНЕС</span>
-            </div>
-            <div style={{ fontSize: '12px', color: '#6F7985' }}>
-              Единый портал кредитного конвейера
-            </div>
+    <main className="login-page">
+      <section className="login-story">
+        <div className="login-story__brand">
+          <span className="brand__mark brand__mark--large">A</span>
+          <span>АЛЬФА / ПОТОК</span>
+        </div>
+        <div className="login-story__content">
+          <span className="login-story__chip">Умный кредитный кабинет</span>
+          <Typography.Title tag="h1" view="xlarge" weight="bold" className="login-story__title">
+            Финансирование бизнеса без лишних шагов
+          </Typography.Title>
+          <Typography.Text tag="p" view="primary-large" className="login-story__text">
+            Банк уже знает компанию, подбирает подходящие условия и прозрачно проводит заявку до выдачи.
+          </Typography.Text>
+          <div className="login-story__steps">
+            <span><b>01</b> Выберите цель</span>
+            <span><b>02</b> Получите расчёт</span>
+            <span><b>03</b> Следите за решением</span>
           </div>
         </div>
+        <div className="login-story__glow" />
+      </section>
 
-        {/* Форма для сотрудника банка */}
-        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px', color: '#0B1F35' }}>
-          Вход для сотрудников банка
-        </h2>
-        <p style={{ fontSize: '12px', color: '#6F7985', marginBottom: '18px' }}>
-          Для проверки конвейера используйте: <b style={{ color: '#0B1F35' }}>admin / admin</b>
-        </p>
-
-        <form onSubmit={handleBankLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#333F48', marginBottom: '6px' }}>
-              Логин
-            </label>
-            <input
-              type="text"
-              placeholder="admin"
-              value={username}
-              onChange={(e) => { setUsername(e.target.value); setError(''); }}
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                borderRadius: '8px',
-                border: '1px solid #D0D5DD',
-                fontSize: '14px',
-                outline: 'none',
-              }}
-            />
+      <section className="login-panel">
+        <div className="login-card">
+          <div className="login-card__heading">
+            <div className="eyebrow">Демонстрационный контур</div>
+            <Typography.Title tag="h2" view="medium" weight="bold">Войти в кабинет</Typography.Title>
+            <Typography.Text tag="p" view="primary-small" color="secondary">
+              Используйте тестовый аккаунт или выберите готовый профиль ниже.
+            </Typography.Text>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#333F48', marginBottom: '6px' }}>
-              Пароль
-            </label>
-            <input
+          <form className="login-form" onSubmit={handleSubmit}>
+            <Input
+              label="Электронная почта"
+              labelView="outer"
+              type="email"
+              size={56}
+              block
+              value={email}
+              maxLength={80}
+              autoComplete="username"
+              spellCheck={false}
+              error={emailError || false}
+              hint="Только латинские буквы, цифры и символы email"
+              onBlur={() => {
+                if (email && !EMAIL_PATTERN.test(email)) setEmailError('Введите корректный email латиницей');
+              }}
+              onChange={(_, payload) => {
+                const sanitizedEmail = payload.value.replace(/[^A-Za-z0-9@._%+-]/g, '');
+                setEmail(sanitizedEmail);
+                setAuthError('');
+                setEmailError(payload.value === sanitizedEmail ? '' : 'Email можно вводить только латиницей');
+              }}
+            />
+            <Input
+              label="Пароль"
+              labelView="outer"
               type="password"
-              placeholder="•••••"
+              size={56}
+              block
               value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(''); }}
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                borderRadius: '8px',
-                border: '1px solid #D0D5DD',
-                fontSize: '14px',
-                outline: 'none',
-              }}
+              autoComplete="current-password"
+              onChange={(_, payload) => { setPassword(payload.value); setAuthError(''); }}
+              error={authError || false}
             />
-          </div>
+            <Button type="submit" view="accent" size={56} block>
+              Войти
+            </Button>
+          </form>
 
-          {error && (
-            <div style={{ fontSize: '12px', color: '#D9383A', backgroundColor: '#FDECEC', padding: '8px 12px', borderRadius: '6px' }}>
-              {error}
-            </div>
-          )}
+          <div className="demo-divider"><span>Быстрый вход</span></div>
 
-          <button
-            type="submit"
-            style={{
-              marginTop: '4px',
-              backgroundColor: '#0B1F35',
-              color: '#FFFFFF',
-              border: 'none',
-              padding: '12px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            Войти как андеррайтер банка
-          </button>
-        </form>
-
-        <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: '12px' }}>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#E5E7EB' }}></div>
-          <span style={{ fontSize: '12px', color: '#8A94A6', textTransform: 'uppercase' }}>или</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#E5E7EB' }}></div>
-        </div>
-
-        {/* Кнопка входа через Альфа-ID для предпринимателя */}
-        <button
-          type="button"
-          onClick={() => setShowAlfaIdModal(true)}
-          style={{
-            width: '100%',
-            backgroundColor: '#EF3124',
-            color: '#FFFFFF',
-            border: 'none',
-            padding: '14px',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            boxShadow: '0 4px 14px rgba(239, 49, 36, 0.25)',
-          }}
-        >
-          <span style={{
-            backgroundColor: '#FFF',
-            color: '#EF3124',
-            borderRadius: '4px',
-            padding: '1px 6px',
-            fontWeight: 900,
-            fontSize: '12px',
-          }}>
-            А
-          </span>
-          Войти с Альфа-ID (Клиент)
-        </button>
-      </div>
-
-      {/* Модальное окно выбора синтетического клиента */}
-      {showAlfaIdModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(11, 31, 53, 0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-        }}>
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: '16px',
-            maxWidth: '480px',
-            width: '100%',
-            padding: '28px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0B1F35' }}>
-                  Вход через Альфа-ID
-                </h3>
-                <p style={{ fontSize: '12px', color: '#6F7985' }}>
-                  Выберите профиль предпринимателя из синтетической базы
-                </p>
-              </div>
+          <div className="demo-users">
+            {DEMO_USERS.map((user) => (
               <button
-                onClick={() => setShowAlfaIdModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#8A94A6' }}
+                type="button"
+                className="demo-user"
+                key={user.id}
+                onClick={() => handleQuickLogin(user.id, user.role)}
               >
-                ✕
+                <span className={`avatar${user.role === 'bank' ? ' avatar--bank' : ''}`}>{user.avatarText}</span>
+                <span className="demo-user__copy">
+                  <strong>{user.companyName}</strong>
+                  <small>{user.email} · {user.role === 'bank' ? 'Сотрудник банка' : 'Предприниматель'}</small>
+                </span>
+                <span className="demo-user__arrow">→</span>
               </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {SYNTHETIC_CLIENTS.map((client) => (
-                <div
-                  key={client.id}
-                  onClick={() => handleSelectClient(client)}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    border: '1px solid #E5E7EB',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#EF3124';
-                    e.currentTarget.style.backgroundColor = '#FFF8F8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  }}
-                >
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    backgroundColor: '#0B1F35',
-                    color: '#FFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '13px',
-                  }}>
-                    {client.avatarText}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#0B1F35' }}>
-                      {client.name}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#6F7985' }}>
-                      {client.companyName} • ИНН {client.inn}
-                    </div>
-                  </div>
-                  <span style={{ color: '#EF3124', fontWeight: 600, fontSize: '13px' }}>Выбрать →</span>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
+
+          <div className="login-card__hint">Пароль для всех тестовых аккаунтов: <b>123456</b></div>
         </div>
-      )}
-    </div>
+      </section>
+    </main>
   );
-};
+}

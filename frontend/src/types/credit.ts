@@ -1,73 +1,169 @@
-// Статусы заявки на конвейере
-export type ApplicationStatus =
-  | 'DRAFT'                 // Черновик
-  | 'SUBMITTED'             // Отправлена в банк
-  | 'ENRICHMENT'            // Обогащение данными (ФНС, БКИ)
-  | 'SCORING'               // Оценка рисков (ML)
-  | 'MANUAL_REVIEW'         // Ручной разбор сотрудником банка
-  | 'ADDITIONAL_INFO_REQ'   // Банк запросил доп. документы
-  | 'COUNTER_OFFER'         // Банк предложил альтернативные условия
-  | 'APPROVED'              // Одобрено
-  | 'REJECTED'              // Отказ
-  | 'SIGNED_AND_ISSUED';    // Договор подписан, деньги выданы
+export type UserRole = 'client' | 'bank';
 
-// Кредитный продукт
+export type CreditPurpose = 'goods' | 'equipment' | 'cash_gap';
+
+export type ApplicationStatus =
+  | 'review'
+  | 'need_info'
+  | 'offer'
+  | 'sign'
+  | 'ready'
+  | 'disbursed'
+  | 'rejected';
+
+export type CheckState = 'success' | 'warning' | 'error';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  name: string;
+  companyId?: string;
+  companyName?: string;
+  inn?: string;
+  avatarText: string;
+}
+
+export type NotificationTone = 'info' | 'warning' | 'positive' | 'negative';
+
+export interface ClientNotification {
+  id: string;
+  companyId: string;
+  applicationId: string;
+  title: string;
+  message: string;
+  tone: NotificationTone;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface CompanyDocument {
+  id: string;
+  name: string;
+  description: string;
+  status: 'ready' | 'attention';
+  updatedAt: string;
+}
+
+export interface CompanyProfile {
+  id: string;
+  name: string;
+  legalName: string;
+  inn: string;
+  okved: string;
+  registrationDate: string;
+  account: string;
+  representative: string;
+  monthlyRevenue: number;
+  monthlyExpenses: number;
+  existingPayments: number;
+  hasOverdue: boolean;
+  active: boolean;
+  scoringScore: number;
+  documents: CompanyDocument[];
+}
+
 export interface CreditProduct {
   id: string;
-  name: string;             // Например: "Оборотный кредит"
+  name: string;
+  shortName: string;
+  description: string;
+  purposes: CreditPurpose[];
   minAmount: number;
   maxAmount: number;
-  minTermMonths: number;
-  maxTermMonths: number;
-  baseRate: number;         // Базовая ставка %
+  terms: number[];
+  rate: number;
+  accent: string;
 }
 
-// Профиль компании (из мока ФНС/ЕГРЮЛ)
-export interface CompanyProfile {
-  inn: string;
-  name: string;
-  okved: string;            // Отрасль бизнеса
-  registrationDate: string;
-  annualRevenue: number;
-  currentDebtLoad: number;
-  hasOverdue: boolean;
+export interface Recommendation {
+  product: CreditProduct;
+  monthlyPayment: number;
+  coverage: number;
+  eligible: boolean;
+  reason: string;
+  warning?: string;
+  recommendedAmount?: number;
 }
 
-// Фактор скоринга (для XAI)
-export interface ScoringFactor {
-  name: string;
-  impact: number;
-  type: 'positive' | 'negative' | 'neutral';
+export interface ApplicationCheck {
+  id: string;
+  label: string;
+  value: string;
+  description: string;
+  state: CheckState;
 }
 
-// Оффер банка (включая альтернативные условия)
+export interface ScoringResult {
+  score: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  summary: string;
+  factors: Array<{
+    label: string;
+    value: string;
+    positive: boolean;
+  }>;
+}
+
 export interface LoanOffer {
   id: string;
-  title: string;
-  approvedAmount: number;
+  amount: number;
   termMonths: number;
-  interestRate: number;
+  rate: number;
   monthlyPayment: number;
-  conditions?: string;
+  reason: string;
+  createdAt: string;
 }
 
-// Заявка на кредит
+export interface ApplicationEvent {
+  id: string;
+  status: ApplicationStatus;
+  title: string;
+  description: string;
+  actor: string;
+  createdAt: string;
+}
+
 export interface CreditApplication {
   id: string;
-  createdAt: string;
-  status: ApplicationStatus;
-  requestedProduct: string;
+  companyId: string;
+  productId: string;
+  productName: string;
+  purpose: CreditPurpose;
   requestedAmount: number;
   requestedTermMonths: number;
-  purpose: string;
-  company: CompanyProfile;
-  scoring?: {
-    score: number;
-    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-    probabilityOfDefault: number;
-    factors: ScoringFactor[];
-    aiSummary?: string;
-  };
-  offers?: LoanOffer[];
+  requestedRate: number;
+  requestedMonthlyPayment: number;
+  coverage: number;
+  status: ApplicationStatus;
+  scoring: ScoringResult;
+  checks: ApplicationCheck[];
+  offer?: LoanOffer;
   bankComment?: string;
+  infoRequest?: string;
+  createdAt: string;
+  updatedAt: string;
+  events: ApplicationEvent[];
+}
+
+export interface RecommendationInput {
+  companyId: string;
+  purpose: CreditPurpose;
+  amount: number;
+  termMonths: number;
+}
+
+export interface CreateApplicationInput extends RecommendationInput {
+  productId: string;
+}
+
+export type BankDecisionKind = 'approve' | 'alternative' | 'need_info' | 'reject';
+
+export interface BankDecisionInput {
+  kind: BankDecisionKind;
+  amount?: number;
+  termMonths?: number;
+  rate?: number;
+  comment: string;
 }

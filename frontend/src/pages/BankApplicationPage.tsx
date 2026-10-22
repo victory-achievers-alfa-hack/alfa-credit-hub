@@ -1,0 +1,229 @@
+import { useState } from 'react';
+import { Button } from '@alfalab/core-components/button';
+import { Input } from '@alfalab/core-components/input';
+import { Typography } from '@alfalab/core-components/typography';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
+import { useCredit } from '../context/CreditContext';
+import { getCompany, PURPOSE_LABELS } from '../data/mockData';
+import type { BankDecisionKind } from '../types/credit';
+import { formatDate, formatDateTime, formatMoney, formatPercent } from '../utils/format';
+
+export function BankApplicationPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { applications, decideApplication } = useCredit();
+  const application = applications.find((candidate) => candidate.id === id);
+  const company = getCompany(application?.companyId);
+  const [decision, setDecision] = useState<BankDecisionKind>('approve');
+  const [amount, setAmount] = useState(() => Math.min(application?.requestedAmount ?? 150_000, 150_000));
+  const [termMonths, setTermMonths] = useState(() => application?.requestedTermMonths ?? 24);
+  const [rate, setRate] = useState(() => application?.requestedRate ?? 24);
+  const [comment, setComment] = useState('');
+  const [error, setError] = useState('');
+
+  if (!application || !company) {
+    return (
+      <div className="page-shell">
+        <div className="surface-card empty-state empty-state--large">
+          <span className="empty-state__icon">?</span>
+          <strong>Заявка не найдена</strong>
+          <Button view="accent" size={48} onClick={() => navigate('/bank')}>Вернуться в очередь</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const canDecide = application.status === 'review';
+
+  const handleDecision = () => {
+    if (['need_info', 'reject'].includes(decision) && !comment.trim()) {
+      setError('Укажите причину решения');
+      return;
+    }
+    if (decision === 'alternative' && (amount <= 0 || termMonths <= 0 || rate <= 0)) {
+      setError('Заполните альтернативные условия');
+      return;
+    }
+
+    decideApplication(application.id, {
+      kind: decision,
+      amount,
+      termMonths,
+      rate,
+      comment: comment.trim() || (decision === 'approve' ? 'Заявка соответствует правилам и одобрена на запрошенных условиях.' : 'Альтернативные условия снижают долговую нагрузку.'),
+    });
+    setError('');
+  };
+
+  return (
+    <div className="page-shell page-shell--bank">
+      <button type="button" className="back-link" onClick={() => navigate('/bank')}>← Очередь заявок</button>
+
+      <section className="bank-application-header surface-card">
+        <div>
+          <div className="eyebrow">Заявка {application.id}</div>
+          <Typography.Title tag="h1" view="large" weight="bold">{company.name}</Typography.Title>
+          <p>ИНН {company.inn} · создана {formatDate(application.createdAt)}</p>
+        </div>
+        <div className="bank-application-header__status">
+          <ApplicationStatusBadge status={application.status} />
+          <small>Обновлено {formatDateTime(application.updatedAt)}</small>
+        </div>
+      </section>
+
+      <div className="underwriting-grid">
+        <div className="underwriting-main">
+          <section className="surface-card detail-section">
+            <div className="section-heading section-heading--compact">
+              <div>
+                <div className="eyebrow">Запрос</div>
+                <Typography.Title tag="h2" view="small" weight="bold">Параметры финансирования</Typography.Title>
+              </div>
+              <span className="soft-tag">{PURPOSE_LABELS[application.purpose]}</span>
+            </div>
+            <div className="request-summary">
+              <div><small>Продукт</small><strong>{application.productName}</strong></div>
+              <div><small>Сумма</small><strong>{formatMoney(application.requestedAmount)}</strong></div>
+              <div><small>Срок</small><strong>{application.requestedTermMonths} мес.</strong></div>
+              <div><small>Ставка</small><strong>{formatPercent(application.requestedRate)}</strong></div>
+              <div><small>Новый платёж</small><strong>{formatMoney(application.requestedMonthlyPayment)}</strong></div>
+              <div><small>Покрытие</small><strong className={application.coverage >= 1.25 ? 'positive-text' : 'warning-text'}>{application.coverage.toFixed(2)}×</strong></div>
+            </div>
+          </section>
+
+          <section className="surface-card scoring-section">
+            <div className="scoring-hero">
+              <div className={`score-ring score-ring--${application.scoring.riskLevel}`}>
+                <strong>{application.scoring.score}</strong><small>из 100</small>
+              </div>
+              <div>
+                <div className="eyebrow">Объяснимая оценка</div>
+                <Typography.Title tag="h2" view="small" weight="bold">
+                  {application.scoring.riskLevel === 'low' ? 'Допустимый риск' : application.scoring.riskLevel === 'medium' ? 'Нужно внимание' : 'Высокий риск'}
+                </Typography.Title>
+                <p>{application.scoring.summary}</p>
+              </div>
+            </div>
+            <div className="scoring-factors">
+              {application.scoring.factors.map((factor) => (
+                <div key={factor.label}>
+                  <span className={factor.positive ? 'factor-icon factor-icon--positive' : 'factor-icon factor-icon--negative'}>{factor.positive ? '↗' : '↘'}</span>
+                  <span><small>{factor.label}</small><strong>{factor.value}</strong></span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="surface-card detail-section">
+            <div className="section-heading section-heading--compact">
+              <div>
+                <div className="eyebrow">Моки внешних систем</div>
+                <Typography.Title tag="h2" view="small" weight="bold">Результаты проверок</Typography.Title>
+              </div>
+            </div>
+            <div className="check-list check-list--bank">
+              {application.checks.map((check) => (
+                <div className="check-row" key={check.id}>
+                  <span className={`check-row__icon check-row__icon--${check.state}`}>{check.state === 'success' ? '✓' : check.state === 'warning' ? '!' : '×'}</span>
+                  <span><strong>{check.label}</strong><small>{check.description}</small></span>
+                  <b>{check.value}</b>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="surface-card detail-section">
+            <div className="section-heading section-heading--compact">
+              <div>
+                <div className="eyebrow">Профиль</div>
+                <Typography.Title tag="h2" view="small" weight="bold">Компания и финансы</Typography.Title>
+              </div>
+            </div>
+            <dl className="detail-list detail-list--two-columns">
+              <div><dt>Юридическое лицо</dt><dd>{company.legalName}</dd></div>
+              <div><dt>ОКВЭД</dt><dd>{company.okved}</dd></div>
+              <div><dt>Выручка / месяц</dt><dd>{formatMoney(company.monthlyRevenue)}</dd></div>
+              <div><dt>Расходы / месяц</dt><dd>{formatMoney(company.monthlyExpenses)}</dd></div>
+              <div><dt>Старые платежи</dt><dd>{formatMoney(company.existingPayments)}</dd></div>
+              <div><dt>Просрочки</dt><dd>{company.hasOverdue ? 'Есть' : 'Нет'}</dd></div>
+            </dl>
+          </section>
+        </div>
+
+        <aside className="underwriting-side">
+          {canDecide ? (
+            <section className="surface-card decision-card">
+              <div className="eyebrow">Решение банка</div>
+              <Typography.Title tag="h2" view="small" weight="bold">Выберите действие</Typography.Title>
+              <div className="decision-options">
+                {([
+                  ['approve', 'Одобрить', 'Запрошенные условия'],
+                  ['alternative', 'Предложить альтернативу', 'Другая сумма или срок'],
+                  ['need_info', 'Запросить сведения', 'Вернуть клиенту'],
+                  ['reject', 'Отказать', 'Завершить заявку'],
+                ] as const).map(([value, label, hint]) => (
+                  <button
+                    type="button"
+                    className={`decision-option decision-option--${value}${decision === value ? ' decision-option--active' : ''}`}
+                    key={value}
+                    onClick={() => { setDecision(value); setError(''); }}
+                  >
+                    <span>{decision === value ? '●' : '○'}</span>
+                    <span><strong>{label}</strong><small>{hint}</small></span>
+                  </button>
+                ))}
+              </div>
+
+              {decision === 'alternative' && (
+                <div className="decision-fields">
+                  <Input label="Предложенная сумма" labelView="outer" type="number" size={48} block value={String(amount)} rightAddons="₽" onChange={(_, payload) => setAmount(Number(payload.value))} />
+                  <div className="decision-fields__row">
+                    <Input label="Срок" labelView="outer" type="number" size={48} block value={String(termMonths)} rightAddons="мес." onChange={(_, payload) => setTermMonths(Number(payload.value))} />
+                    <Input label="Ставка" labelView="outer" type="number" size={48} block value={String(rate)} rightAddons="%" onChange={(_, payload) => setRate(Number(payload.value))} />
+                  </div>
+                </div>
+              )}
+
+              <Input
+                label={decision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
+                labelView="outer"
+                size={56}
+                block
+                value={comment}
+                onChange={(_, payload) => { setComment(payload.value); setError(''); }}
+                error={error || false}
+                placeholder={decision === 'alternative' ? 'Например, снижение суммы из-за нагрузки' : 'Краткое объяснение'}
+              />
+              <Button view="accent" size={56} block onClick={handleDecision}>Зафиксировать решение</Button>
+              <p className="decision-card__hint">Статус изменится у клиента сразу после сохранения.</p>
+            </section>
+          ) : (
+            <section className="surface-card decision-card decision-card--result">
+              <ApplicationStatusBadge status={application.status} />
+              <Typography.Title tag="h2" view="small" weight="bold">Решение зафиксировано</Typography.Title>
+              <p>{application.bankComment ?? 'Заявка находится на следующем этапе процесса.'}</p>
+              {application.offer && (
+                <div className="decision-result-offer">
+                  <span><small>Предложено</small><strong>{formatMoney(application.offer.amount)}</strong></span>
+                  <span><small>Платёж</small><strong>{formatMoney(application.offer.monthlyPayment)}</strong></span>
+                </div>
+              )}
+              <Button view="secondary" size={48} block onClick={() => navigate('/bank')}>Вернуться в очередь</Button>
+            </section>
+          )}
+
+          <section className="surface-card mini-timeline">
+            <div className="eyebrow">История</div>
+            {([...application.events].reverse()).map((item, index) => (
+              <div className="mini-timeline__item" key={item.id}>
+                <span className={index === 0 ? 'mini-timeline__dot mini-timeline__dot--active' : 'mini-timeline__dot'} />
+                <div><strong>{item.title}</strong><small>{formatDateTime(item.createdAt)} · {item.actor}</small></div>
+              </div>
+            ))}
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
