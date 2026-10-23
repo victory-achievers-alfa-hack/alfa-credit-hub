@@ -3,5 +3,6 @@
 from .rules import InputError, score_company
 from .financing import assess_financing, loan_quote
 from .ranking import recommend_financing
+from .stress import stress_financing
 
-__all__ = ["InputError", "score_company", "assess_financing", "loan_quote", "recommend_financing"]
+__all__ = ["InputError", "score_company", "assess_financing", "loan_quote", "recommend_financing", "stress_financing"]
