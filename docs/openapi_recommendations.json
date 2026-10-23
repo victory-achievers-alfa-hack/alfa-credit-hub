@@ -1,0 +1,803 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Recommendations API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/recommendations": {
+      "post": {
+        "summary": "Recommendations",
+        "operationId": "recommendations_api_v1_recommendations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse"
+      },
+      "Evaluation": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amount"
+          },
+          "termMonths": {
+            "type": "integer",
+            "title": "Termmonths"
+          },
+          "rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Rate"
+          },
+          "monthlyPayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Monthlypayment"
+          },
+          "lastPayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Lastpayment"
+          },
+          "totalRepayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Totalrepayment"
+          },
+          "interestAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Interestamount"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "productId": {
+            "type": "string",
+            "title": "Productid"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "goods",
+              "equipment",
+              "cash_gap"
+            ],
+            "title": "Purpose"
+          },
+          "assessment": {
+            "type": "string",
+            "enum": [
+              "eligible",
+              "alternative",
+              "need_info",
+              "manual_review",
+              "blocked",
+              "unavailable"
+            ],
+            "title": "Assessment"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "alternative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Offer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recommendedAmount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendedamount"
+          },
+          "scoring": {
+            "$ref": "#/components/schemas/Scoring"
+          },
+          "policyVersion": {
+            "type": "string",
+            "title": "Policyversion"
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Calculatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "termMonths",
+          "rate",
+          "monthlyPayment",
+          "lastPayment",
+          "totalRepayment",
+          "interestAmount",
+          "coverage",
+          "eligible",
+          "productId",
+          "purpose",
+          "assessment",
+          "reasons",
+          "alternative",
+          "recommendedAmount",
+          "scoring",
+          "policyVersion",
+          "calculatedAt"
+        ],
+        "title": "Evaluation"
+      },
+      "Factor": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "positive": {
+            "type": "boolean",
+            "title": "Positive"
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Points"
+          },
+          "maxPoints": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Maxpoints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "label",
+          "value",
+          "positive",
+          "points",
+          "maxPoints"
+        ],
+        "title": "Factor"
+      },
+      "Groups": {
+        "properties": {
+          "requested": {
+            "items": {
+              "$ref": "#/components/schemas/RankedOffer"
+            },
+            "type": "array",
+            "title": "Requested"
+          },
+          "other_terms": {
+            "items": {
+              "$ref": "#/components/schemas/RankedOffer"
+            },
+            "type": "array",
+            "title": "Other Terms"
+          },
+          "reduced_amount": {
+            "items": {
+              "$ref": "#/components/schemas/RankedOffer"
+            },
+            "type": "array",
+            "title": "Reduced Amount"
+          },
+          "requires_action": {
+            "items": {
+              "$ref": "#/components/schemas/RankedOffer"
+            },
+            "type": "array",
+            "title": "Requires Action"
+          },
+          "unavailable": {
+            "items": {
+              "$ref": "#/components/schemas/RankedOffer"
+            },
+            "type": "array",
+            "title": "Unavailable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requested",
+          "other_terms",
+          "reduced_amount",
+          "requires_action",
+          "unavailable"
+        ],
+        "title": "Groups"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Offer": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amount"
+          },
+          "termMonths": {
+            "type": "integer",
+            "title": "Termmonths"
+          },
+          "rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Rate"
+          },
+          "monthlyPayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Monthlypayment"
+          },
+          "lastPayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Lastpayment"
+          },
+          "totalRepayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Totalrepayment"
+          },
+          "interestAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Interestamount"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "termMonths",
+          "rate",
+          "monthlyPayment",
+          "lastPayment",
+          "totalRepayment",
+          "interestAmount",
+          "coverage",
+          "eligible"
+        ],
+        "title": "Offer"
+      },
+      "Product": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "minAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Minamount"
+          },
+          "maxAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Maxamount"
+          },
+          "rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Rate"
+          },
+          "terms": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Terms"
+          },
+          "purposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "goods",
+                "equipment",
+                "cash_gap"
+              ]
+            },
+            "type": "array",
+            "title": "Purposes"
+          },
+          "shortName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shortname"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "accent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "minAmount",
+          "maxAmount",
+          "rate",
+          "terms",
+          "purposes"
+        ],
+        "title": "Product"
+      },
+      "RankedOffer": {
+        "properties": {
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/Evaluation"
+          },
+          "offer": {
+            "$ref": "#/components/schemas/Offer"
+          },
+          "termChanged": {
+            "type": "boolean",
+            "title": "Termchanged"
+          },
+          "amountShortfall": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amountshortfall"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "other_terms",
+              "reduced_amount",
+              "requires_action",
+              "unavailable"
+            ],
+            "title": "Group"
+          },
+          "rankInGroup": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rankingroup"
+          },
+          "rankingReason": {
+            "type": "string",
+            "title": "Rankingreason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product",
+          "evaluation",
+          "offer",
+          "termChanged",
+          "amountShortfall",
+          "group",
+          "rankInGroup",
+          "rankingReason"
+        ],
+        "title": "RankedOffer"
+      },
+      "Reason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "Reason"
+      },
+      "RecommendationRequest": {
+        "properties": {
+          "companyId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companyid"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "goods",
+              "equipment",
+              "cash_gap"
+            ],
+            "title": "Purpose"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$"
+              }
+            ],
+            "title": "Amount"
+          },
+          "termMonths": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Termmonths"
+          },
+          "preference": {
+            "type": "string",
+            "enum": [
+              "min_interest",
+              "min_payment"
+            ],
+            "title": "Preference",
+            "default": "min_interest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "amount",
+          "termMonths"
+        ],
+        "title": "RecommendationRequest"
+      },
+      "RecommendationResponse": {
+        "properties": {
+          "evaluationId": {
+            "type": "string",
+            "title": "Evaluationid"
+          },
+          "companyId": {
+            "type": "string",
+            "title": "Companyid"
+          },
+          "rankingVersion": {
+            "type": "string",
+            "title": "Rankingversion"
+          },
+          "preference": {
+            "type": "string",
+            "enum": [
+              "min_interest",
+              "min_payment"
+            ],
+            "title": "Preference"
+          },
+          "requestedAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Requestedamount"
+          },
+          "requestedTermMonths": {
+            "type": "integer",
+            "title": "Requestedtermmonths"
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Calculatedat"
+          },
+          "groups": {
+            "$ref": "#/components/schemas/Groups"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evaluationId",
+          "companyId",
+          "rankingVersion",
+          "preference",
+          "requestedAmount",
+          "requestedTermMonths",
+          "calculatedAt",
+          "groups"
+        ],
+        "title": "RecommendationResponse"
+      },
+      "Scoring": {
+        "properties": {
+          "score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Risklevel"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/Factor"
+            },
+            "type": "array",
+            "title": "Factors"
+          },
+          "modelVersion": {
+            "type": "string",
+            "title": "Modelversion"
+          },
+          "featureVersion": {
+            "type": "string",
+            "title": "Featureversion"
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Calculatedat"
+          },
+          "eventProbability": {
+            "type": "null",
+            "title": "Eventprobability"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "score",
+          "riskLevel",
+          "summary",
+          "factors",
+          "modelVersion",
+          "featureVersion",
+          "calculatedAt",
+          "eventProbability"
+        ],
+        "title": "Scoring"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
