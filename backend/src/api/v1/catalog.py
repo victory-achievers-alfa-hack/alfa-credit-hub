@@ -11,7 +11,6 @@ router = APIRouter()
 
 @router.get("/credit-products")
 def get_credit_products(
-        user_id: int,
         db: Session = Depends(get_db)
-) -> catalog_schemas.CreditProductResponse:
-    return catalog_service.get_credit_products(user_id, db)
+) -> list[catalog_schemas.CreditProductResponse]:
+    return catalog_service.get_credit_products(db)

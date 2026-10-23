@@ -1,77 +1,88 @@
-from __future__ import annotations
-
-from datetime import date, datetime, UTC
+from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
-from .enums import ApplicationStatus, CreditGoal
+from pydantic import Field
+
+from .base import ApiSchema
+from .enums import ApplicationStatus, CreditGoal, UserRole
 
 
-class CompanyRequest(BaseModel):
-    id: int
-    company_name: str = Field(..., max_length=127)
-    inn: str = Field(
-        ...,
-        min_length=10,
-        max_length=12,
-        pattern=r"^\d{10}$|^\d{12}$",  # Строго 10 или 12 цифр
-    )
-
-    @field_validator("company_name")
-    @classmethod
-    def id_must_be_positive(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Company name can't be empty")
-        return v
+class ApplicationCreateRequest(ApiSchema):
+    product_id: str = Field(..., min_length=1, examples=["working-capital"])
+    purpose: CreditGoal
+    amount: Decimal = Field(..., ge=50000, le=5000000, examples=[800000])
+    term_months: int = Field(..., gt=0, examples=[24])
 
 
-class ApplicationListItemResponse(BaseModel):
-    id: str = Field(..., examples=["AF-1042"])
-    client_id: str = Field(..., examples=["cafe"])
-    company_name: str = Field(..., examples=["Кофейня «Зёрна»"], max_length=127)
-    product_id: str = Field(..., examples=["investment"])
-    product_name: str = Field(..., examples=["Инвестиционный кредит"], max_length=127)
-    amount: Decimal = Field(..., ge=0, examples=[800000])
-    offer_amount: Decimal | None = Field(None, ge=0, description="Предложенная банком сумма (если есть оффер)")
-    term: int = Field(..., examples=[24])
+class AdditionalInfoRequest(ApiSchema):
+    comment: str = Field(..., min_length=1, max_length=2000)
+    document_ids: list[str] = Field(default_factory=list)
+
+
+class OfferDecisionRequest(ApiSchema):
+    accepted: bool = Field(..., description="Принимает ли клиент оффер")
+
+
+class ApplicationEventResponse(ApiSchema):
+    id: str
+    type: str
+    description: str
+    old_status: ApplicationStatus | None = None
+    new_status: ApplicationStatus | None = None
+    actor_id: str
+    actor_role: UserRole
+    created_at: datetime
+
+
+class ApplicationCheckResponse(ApiSchema):
+    name: str
+    status: str
+    details: str | None = None
+
+
+class ApplicationOfferResponse(ApiSchema):
+    amount: Decimal = Field(..., ge=0)
+    term_months: int = Field(..., gt=0)
+    rate: Decimal = Field(..., ge=0)
+    monthly_payment: Decimal = Field(..., ge=0)
+    expires_at: datetime | None = None
+
+
+class ApplicationListItemResponse(ApiSchema):
+    id: str = Field(..., examples=["APP-2026-003"])
+    company_id: str
+    company_name: str
+    product_id: str
+    product_name: str
+    purpose: CreditGoal
+    amount: Decimal = Field(..., ge=0)
+    term_months: int = Field(..., gt=0)
     status: ApplicationStatus
-
-    @field_validator("company_name", "product_name")
-    @classmethod
-    def field_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("This field can't be empty")
-        return v
-
-# --
-
-class ApplicationCreateRequest(BaseModel):
-    product_id: str = Field(..., examples=["working"])
-    goal: CreditGoal
-    amount: int = Field(..., ge=50000, le=5000000, examples=[800000])
-    term: int = Field(..., examples=[24])
+    updated_at: datetime
 
 
 class ApplicationDetailResponse(ApplicationListItemResponse):
-    goal: CreditGoal
-    rate: float = Field(..., examples=[22.0])
-    notes: str | None = Field(None, examples=["Заявка ожидает банковского решения"])
-    history: list[ApplicationHistoryEvent]
-
-# --
-
-class ApplicationHistoryEvent(BaseModel):
-    title: str = Field(..., examples=["Заявка отправлена"])
-    description: str = Field(..., examples=["Данные получены от клиента"])
-    creation_date: date = Field(default=datetime.now(UTC))
-
-    @field_validator("title", "description")
-    @classmethod
-    def field_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("This field can't be empty")
-        return v
+    rate: Decimal = Field(..., ge=0)
+    monthly_payment: Decimal = Field(..., ge=0)
+    coverage: Decimal
+    score: int = Field(..., ge=0, le=100)
+    risk: str
+    explanation: str
+    factors: list[str]
+    checks: list[ApplicationCheckResponse]
+    active_offer: ApplicationOfferResponse | None = None
+    bank_comment: str | None = None
+    history: list[ApplicationEventResponse]
 
 
-class OfferDecisionRequest(BaseModel):
-    accepted: bool = Field(..., description="True — принять (в sign), False — отказаться (в rejected)")
+class ApplicationListResponse(ApiSchema):
+    items: list[ApplicationListItemResponse]
+    total: int = Field(..., ge=0)
+    limit: int = Field(..., gt=0)
+    offset: int = Field(..., ge=0)
+
+
+class ApplicationListQuery(ApiSchema):
+    status: ApplicationStatus | None = None
+    limit: int = Field(default=20, gt=0, le=100)
+    offset: int = Field(default=0, ge=0)

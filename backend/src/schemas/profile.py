@@ -1,32 +1,31 @@
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator
+from .base import ApiSchema
 from .enums import UserRole
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(ApiSchema):
     email: EmailStr = Field(..., examples=["client@demo.ru"])
     password: str = Field(..., min_length=1, examples=["123456"])
 
 
-class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class LoginResponse(ApiSchema):
+    access_token: str | None = None
+    token_type: str | None = None
     user: UserMeResponse
 
 
-class UserMeResponse(BaseModel):
-    id: str = Field(..., examples=["city"])
+class UserMeResponse(ApiSchema):
+    id: str = Field(..., examples=["user-client-city"])
+    name: str = Field(..., examples=["Алексей Смирнов"], max_length=127)
     email: EmailStr
     role: UserRole
-    contact_name: str = Field(..., examples=["Александр Волков"], max_length=127)
-    initials: str = Field(..., examples=["АВ"], max_length=10)
-    company_name: str | None = Field(None, examples=["Магазин «Город»"], max_length=127)
+    company_id: str | None = Field(None, examples=["company-city"])
 
-    @field_validator("contact_name", "initials")
+    @field_validator("name")
     @classmethod
     def field_not_empty(cls, v: str) -> str:
         if not v.strip():
@@ -34,7 +33,7 @@ class UserMeResponse(BaseModel):
         return v
 
 
-class FinancialProfileSchema(BaseModel):
+class FinancialProfileSchema(ApiSchema):
     revenue: Decimal = Field(..., description="Месячная выручка, ₽", examples=[900000])
     expenses: Decimal = Field(..., description="Расходы без платежей по долгам, ₽", examples=[740000])
     debt: Decimal = Field(..., description="Действующие кредитные платежи, ₽", examples=[120000])
@@ -42,22 +41,18 @@ class FinancialProfileSchema(BaseModel):
     turnover: list[Decimal] = Field(..., description="Динамика выручки за 12 месяцев для графика")
 
 
-class CompanyDocumentSchema(BaseModel):
-    title: str = Field(..., examples=["Сведения ЕГРЮЛ / ЕГРИП"])
-    source_note: str = Field(..., examples=["Синтетический документ"])
-    is_valid: bool = True
+class CompanyDocumentSchema(ApiSchema):
+    id: str
+    name: str
+    status: str
 
 
-class CompanyProfileResponse(BaseModel):
-    id: str = Field(..., examples=["city"])
+class CompanyProfileResponse(ApiSchema):
+    id: str = Field(..., examples=["company-city"])
     name: str = Field(..., examples=["Магазин «Город»"], max_length=127)
-    legal_name: str = Field(..., examples=["ООО «Город Ритейл»"], max_length=127)
     inn: str = Field(..., pattern=r"^\d{10,12}$", examples=["7704821934"])
-    okved: str = Field(..., examples=["47.19 · Розничная торговля"])
-    sector: str = Field(..., examples=["Розничная торговля"])
-    since: date = Field(..., examples=["2023-03-12"])
-    age_months: int = Field(..., examples=[43])
-    account: str = Field(..., examples=["40702 •••• •••• 4810"])
-    contact: str = Field(..., examples=["Александр Волков"], max_length=127)
-    financials: FinancialProfileSchema
+    industry: str
+    monthly_revenue: Decimal = Field(..., ge=0)
+    monthly_expenses: Decimal = Field(..., ge=0)
+    current_monthly_debt_payment: Decimal = Field(..., ge=0)
     documents: list[CompanyDocumentSchema]

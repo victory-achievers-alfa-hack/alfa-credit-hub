@@ -8,14 +8,14 @@ def login_user(login_request: profile_schemas.LoginRequest) -> profile_schemas.L
 
 
 def get_user_data(
-        user_id: int,
+        user_id: str,
         db: Session
 ) -> profile_schemas.UserMeResponse:
     pass
 
 
 def get_user_companies(
-        user_id: int,
+        company_id: str | None,
         db: Session
 ) -> profile_schemas.CompanyProfileResponse:
     pass

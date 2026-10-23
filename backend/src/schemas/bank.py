@@ -1,42 +1,46 @@
 from decimal import Decimal
-from typing import Literal
-from pydantic import BaseModel, Field, field_validator
-from .enums import BankDecisionAction
+
+from pydantic import Field, model_validator
+
 from .applications import ApplicationDetailResponse
+from .base import ApiSchema
+from .enums import ApplicationStatus, BankDecisionKind
 from .profile import CompanyProfileResponse
-from .recommendations import FinanceCalculationSchema
 
 
-class BankCheckItem(BaseModel):
-    name: str = Field(..., examples=["Название компании"], max_length=127)
-    title: str = Field(..., examples=["Статус компании"], max_length=255)
-    subtitle: str = Field(..., examples=["Активна · симулятор ФНС"], max_length=255)
-    badge_type: Literal["green", "amber", "red"] = "green"
-    badge_text: str = Field(..., examples=["Пройдено"], max_length=63)
-
-    @field_validator("name", "title", "subtitle", "badge_text")
-    @classmethod
-    def field_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("This field can't be empty")
-        return v
+class BankApplicationListItemResponse(ApiSchema):
+    id: str
+    company_id: str
+    company_name: str
+    product_name: str
+    amount: Decimal = Field(..., ge=0)
+    status: ApplicationStatus
 
 
-class BankApplicationDetailResponse(BaseModel):
+class BankApplicationListResponse(ApiSchema):
+    items: list[BankApplicationListItemResponse]
+    total: int = Field(..., ge=0)
+
+
+class BankApplicationDetailResponse(ApiSchema):
     application: ApplicationDetailResponse
     company: CompanyProfileResponse
-    calculation: FinanceCalculationSchema
-    checks: list[BankCheckItem]
-    can_approve_full: bool = Field(..., description="Доступна ли кнопка полного одобрения")
-    can_offer_counter: bool = Field(..., description="Доступна ли кнопка альтернативного оффера")
-    counter_offer_amount: Decimal = Field(..., ge=0, description="Сумма для кнопки 'Предложить X ₽'")
 
 
-class BankDecisionRequest(BaseModel):
-    action: BankDecisionAction
-    custom_offer_amount: Decimal | None = Field(
-        None, ge=0, description="Сумма альтернативного предложения (для action='counter')"
-    )
-    comment: str | None = Field(
-        None, description="Причина отказа или комментарий к запросу сведений"
-    )
+class BankDecisionRequest(ApiSchema):
+    kind: BankDecisionKind
+    amount: Decimal | None = Field(None, gt=0)
+    term_months: int | None = Field(None, gt=0)
+    rate: Decimal | None = Field(None, ge=0)
+    comment: str | None = Field(None, max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_decision_fields(self):
+        if self.kind == BankDecisionKind.ALTERNATIVE:
+            if self.amount is None or self.term_months is None or self.rate is None:
+                raise ValueError("amount, termMonths and rate are required for an offer")
+            if not self.comment:
+                raise ValueError("comment is required for an alternative offer")
+        if self.kind in (BankDecisionKind.NEED_INFO, BankDecisionKind.REJECT) and not self.comment:
+            raise ValueError("comment is required for this decision")
+        return self
