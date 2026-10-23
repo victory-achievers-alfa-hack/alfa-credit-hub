@@ -24,6 +24,21 @@
 
 ## Быстрый запуск
 
+### Проверка DS-модулей без сервера
+
+Из корня репозитория (Python 3.12+, сторонние зависимости не нужны):
+
+```bash
+python -m unittest discover -s tests -v
+python -m examples.financing_demo
+```
+
+Реализованы объяснимый скоринг по правилам и предварительная оценка финансирования
+с альтернативной суммой. Это независимые модули: API и frontend пока их не вызывают.
+План — [docs/ds_plan.md](docs/ds_plan.md), контракт —
+[docs/financing_contract.md](docs/financing_contract.md), соответствие заданию —
+[docs/ds_requirements_trace.md](docs/ds_requirements_trace.md).
+
 ### Backend
 
 Установить зависимости из корня проекта:

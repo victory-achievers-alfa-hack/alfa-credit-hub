@@ -99,10 +99,17 @@ export interface ScoringResult {
   score: number;
   riskLevel: 'low' | 'medium' | 'high';
   summary: string;
+  modelVersion?: string;
+  featureVersion?: string;
+  calculatedAt?: string;
+  eventProbability?: number | null;
   factors: Array<{
     label: string;
     value: string;
     positive: boolean;
+    code?: string;
+    points?: number;
+    maxPoints?: number;
   }>;
 }
 
