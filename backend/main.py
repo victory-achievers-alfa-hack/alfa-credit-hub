@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import uvicorn
+
 from backend.src.api.v1.applications import router as applications_router
 from backend.src.api.v1.assistant import router as assistant_router
 from backend.src.api.v1.bank import router as bank_router
@@ -68,3 +70,7 @@ app.include_router(notifications_router, prefix="/api/v1", tags=["notifications"
 app.include_router(profile_router, prefix="/api/v1", tags=["profile"])
 app.include_router(recommendations_router, prefix="/api/v1", tags=["recommendations"])
 app.include_router(system_router, prefix="/api/v1", tags=["system"])
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

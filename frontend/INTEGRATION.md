@@ -2,19 +2,17 @@
 
 ## Изменение API рекомендаций
 
-Роутер POST /api/v1/recommendations теперь вызывает расчётный сервис через строгие DTO.
-Актуальный внешний ответ — объект с evaluationId и groups, не плоский массив Recommendation.
-Контракт: docs/recommendations_api.md; схема роутера: docs/openapi_recommendations.json.
+Роутер `POST /api/v1/recommendations` вызывает расчётный сервис через строгие DTO, проверяет авторизацию клиента и сохраняет аудит расчёта в БД через `SQLAlchemyRecommendationStore`.
+Актуальный внешний ответ — объект с `evaluationId` и `groups`, не плоский массив `Recommendation`.
+Контракт: `docs/recommendations_api.md`; схема роутера: `docs/openapi_recommendations.json`.
 Это целевое изменение требует адаптации frontend; нижние старые JSON-примеры рекомендаций
-не описывают новый ответ. Авторизация и хранилище ещё не подключены: по умолчанию 401.
-Финансы и scoringScore в запрос передавать нельзя. Сохранение аудита через адаптер
-обязательно до успешного ответа; постоянный адаптер ещё предстоит реализовать.
+не описывают новый ответ. Финансы и `scoringScore` в запрос передавать нельзя.
 
 ## Модуль скоринга по правилам
 
 С 23 октября 2026 доступна Python-функция `backend.src.scoring.score_company(company, evaluated_at=...)`.
 Её входы и правила описаны в `docs/ds_contract.md`, порядок внедрения — в `docs/ds_plan.md`.
-Модуль пока не подключён к endpoint'ам и demo-store. Перед HTTP-интеграцией backend должен описать DTO в OpenAPI.
+Модуль подключён к серверному расчёту рекомендаций и созданию заявок (`POST /api/v1/applications`).
 Существующие поля `score`, `riskLevel`, `summary`, `factors` сохраняются. Добавлены метаданные
 `modelVersion`, `featureVersion`, `calculatedAt`, `eventProbability` (null у правил),
 а в факторы — `code`, `points`, `maxPoints`. В TypeScript они пока необязательны для совместимости с demo-store.
