@@ -13,6 +13,13 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
+[dependency-groups]
+test = [
+    "httpx",
+    "httpx2",
+    "pytest",
+]
+
 [project.scripts]
 alfa-credit-hub = "alfa_credit_hub:main"
 
