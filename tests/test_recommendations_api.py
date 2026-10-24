@@ -2,7 +2,12 @@ import unittest
 from copy import deepcopy
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from backend.src.api.v1.recommendations import router, get_recommendation_actor, get_recommendation_store
+from backend.src.database import Base
+from backend.src.dependency import get_db
 from backend.src.service.recommendations import Actor, AuthorizedSnapshot, create_recommendations
 from backend.src.recommendation_contract import RecommendationRequest
 from backend.src.scoring import recommend_financing
@@ -31,11 +36,29 @@ class RecommendationApiTests(unittest.TestCase):
     def setUp(self):
         self.app = FastAPI()
         self.app.include_router(router, prefix="/api/v1")
+        self.engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(bind=self.engine)
+        testing_session = sessionmaker(bind=self.engine)
+
+        def override_get_db():
+            with testing_session() as db:
+                yield db
+
+        self.app.dependency_overrides[get_db] = override_get_db
         self.store = FakeStore()
         self.app.dependency_overrides[get_recommendation_actor] = lambda: Actor("u1", "c1")
         self.app.dependency_overrides[get_recommendation_store] = lambda: self.store
         self.client = TestClient(self.app)
         self.request = dict(purpose="goods", amount=800000, termMonths=24)
+
+    def tearDown(self):
+        self.client.close()
+        Base.metadata.drop_all(bind=self.engine)
+        self.engine.dispose()
 
     def post(self, **changes):
         return self.client.post("/api/v1/recommendations", json=self.request | changes)
@@ -86,9 +109,9 @@ class RecommendationApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertNotIn("private", response.text)
 
-    def test_store_unconfigured_and_openapi(self):
+    def test_sql_store_missing_actor_and_openapi(self):
         del self.app.dependency_overrides[get_recommendation_store]
-        self.assertEqual(self.post().status_code, 503)
+        self.assertEqual(self.post().status_code, 404)
         schema = self.app.openapi()
         self.assertIn("RecommendationResponse", schema["components"]["schemas"])
         request = schema["components"]["schemas"]["RecommendationRequest"]
