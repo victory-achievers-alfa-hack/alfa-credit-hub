@@ -24,24 +24,22 @@
 
 ## Быстрый запуск
 
-### Проверка DS-модулей без сервера
+### Единый запуск в Docker (рекомендуется)
 
-Из корня репозитория (Python 3.12+; сами расчётные модули не требуют сторонних зависимостей).
-Для полного набора тестов, включая HTTP, установите зависимости backend и
-`python -m pip install -r tests/requirements.txt`:
+Запуск всех сервисов (`backend` + `frontend` с проксированием `/api/` через Nginx и постоянным томом SQLite):
 
 ```bash
-python -m unittest discover -s tests -v
-python -m examples.financing_demo
+docker compose up --build
 ```
 
-Реализованы объяснимый скоринг по правилам и предварительная оценка финансирования
-с альтернативной суммой. Это независимые модули: API и frontend пока их не вызывают.
-План — [docs/ds_plan.md](docs/ds_plan.md), контракт —
-[docs/financing_contract.md](docs/financing_contract.md), соответствие заданию —
-[docs/ds_requirements_trace.md](docs/ds_requirements_trace.md).
+- Приложение (Frontend + Nginx proxy): `http://localhost` (порт `80`, либо `FRONTEND_PORT`)
+- Backend API напрямую: `http://localhost:8000/api/v1` (порт `8000`, либо `BACKEND_PORT`)
+- Swagger / OpenAPI: `http://localhost:8000/docs`
+- Healthcheck: `http://localhost:8000/api/v1/health`
 
-### Backend
+Backend-образ собирается в двухступенчатом `backend/Dockerfile` на базе `uv` (`python3.12-alpine3.23`) с упаковкой приложения через `PyInstaller` в единый исполняемый файл `/app/main` и запуском от непривилегированного пользователя в минимальном образе `alpine:3.23`. При первом старте база данных автоматически инициализируется демонстрационными данными.
+
+### Локальный запуск Backend
 
 Установить зависимости из корня проекта:
 
@@ -49,7 +47,13 @@ python -m examples.financing_demo
 uv sync
 ```
 
-Запустить API:
+Запустить сервер напрямую через `backend/main.py` (запускает `uvicorn` на `0.0.0.0:8000`):
+
+```bash
+uv run python -m backend.main
+```
+
+Либо в режиме разработки с автоперезагрузкой:
 
 ```bash
 uv run uvicorn backend.main:app --reload
@@ -57,6 +61,19 @@ uv run uvicorn backend.main:app --reload
 
 - API: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
+
+### Тестирование Backend и DS-модулей
+
+Из корня репозитория (Python 3.12+):
+
+```bash
+uv run pytest backend/tests/test_workflows_api.py -v
+uv run python -m unittest discover -s tests -v
+uv run python -m examples.financing_demo
+```
+
+Реализованы объяснимый скоринг по правилам, предварительная оценка финансирования с альтернативной суммой, ранжирование предложений, стресс-сценарии выручки, а также полный серверный API (аутентификация, профиль, каталог, рекомендации с аудитом, жизненный цикл заявок, банковские решения, уведомления и WebSocket).
+План DS — [docs/ds_plan.md](docs/ds_plan.md), контракт — [docs/financing_contract.md](docs/financing_contract.md), соответствие заданию — [docs/ds_requirements_trace.md](docs/ds_requirements_trace.md).
 
 ### Frontend и realtime
 

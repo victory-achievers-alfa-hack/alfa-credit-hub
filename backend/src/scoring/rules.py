@@ -33,7 +33,9 @@ def _money(data: Mapping[str, Any], field: str) -> Decimal:
     return value
 
 
-def score_company(company: Mapping[str, Any], *, evaluated_at: datetime) -> dict[str, Any]:
+def score_company(
+    company: Mapping[str, Any], *, evaluated_at: datetime
+) -> dict[str, Any]:
     """Score a company at an explicit instant; identical input yields identical output.
 
     Accepts frontend field names. Ignores legacy scoringScore and loan terms.
@@ -68,38 +70,101 @@ def score_company(company: Mapping[str, Any], *, evaluated_at: datetime) -> dict
     coverage = flow / debt if debt > 0 else None
 
     history_points = 0 if overdue else 30
-    margin_points = (25 if margin >= Decimal("0.20") else
-                     18 if margin >= Decimal("0.10") else
-                     10 if margin > 0 else 0) if margin is not None else 0
+    margin_points = (
+        (
+            25
+            if margin >= Decimal("0.20")
+            else 18
+            if margin >= Decimal("0.10")
+            else 10
+            if margin > 0
+            else 0
+        )
+        if margin is not None
+        else 0
+    )
     if flow <= 0:
         debt_points = 0
     elif debt == 0:
         debt_points = 30
     else:
-        debt_points = (30 if coverage >= 2 else 22 if coverage >= Decimal("1.25")
-                       else 10 if coverage >= 1 else 0)
-    age_points = 15 if age_months >= 36 else 10 if age_months >= 12 else 5 if age_months >= 6 else 0
+        debt_points = (
+            30
+            if coverage >= 2
+            else 22
+            if coverage >= Decimal("1.25")
+            else 10
+            if coverage >= 1
+            else 0
+        )
+    age_points = (
+        15
+        if age_months >= 36
+        else 10
+        if age_months >= 12
+        else 5
+        if age_months >= 6
+        else 0
+    )
 
-    def factor(code: str, label: str, value: str, points: int, maximum: int) -> dict[str, Any]:
-        return {"code": code, "label": label, "value": value,
-                "positive": points >= maximum / 2, "points": points, "maxPoints": maximum}
+    def factor(
+        code: str, label: str, value: str, points: int, maximum: int
+    ) -> dict[str, Any]:
+        return {
+            "code": code,
+            "label": label,
+            "value": value,
+            "positive": points >= maximum / 2,
+            "points": points,
+            "maxPoints": maximum,
+        }
 
     factors = [
-        factor("PAYMENT_HISTORY", "Текущая просрочка", "Есть" if overdue else "Нет", history_points, 30),
-        factor("OPERATING_MARGIN", "Операционная маржа",
-               f"{margin * 100:.2f}%" if margin is not None else "Не определена: нулевая выручка", margin_points, 25),
-        factor("EXISTING_DEBT_COVERAGE", "Покрытие существующих платежей",
-               f"{coverage:.2f}×" if coverage is not None else "Существующих платежей нет", debt_points, 30),
-        factor("BUSINESS_AGE", "Возраст бизнеса", f"{age_months} полных месяцев", age_points, 15),
+        factor(
+            "PAYMENT_HISTORY",
+            "Текущая просрочка",
+            "Есть" if overdue else "Нет",
+            history_points,
+            30,
+        ),
+        factor(
+            "OPERATING_MARGIN",
+            "Операционная маржа",
+            f"{margin * 100:.2f}%"
+            if margin is not None
+            else "Не определена: нулевая выручка",
+            margin_points,
+            25,
+        ),
+        factor(
+            "EXISTING_DEBT_COVERAGE",
+            "Покрытие существующих платежей",
+            f"{coverage:.2f}×" if coverage is not None else "Существующих платежей нет",
+            debt_points,
+            30,
+        ),
+        factor(
+            "BUSINESS_AGE",
+            "Возраст бизнеса",
+            f"{age_months} полных месяцев",
+            age_points,
+            15,
+        ),
     ]
     score = sum(item["points"] for item in factors)
-    risk = "low" if score >= LOW_RISK_MIN else "medium" if score >= MEDIUM_RISK_MIN else "high"
+    risk = (
+        "low"
+        if score >= LOW_RISK_MIN
+        else "medium"
+        if score >= MEDIUM_RISK_MIN
+        else "high"
+    )
     labels = {"low": "устойчивый", "medium": "промежуточный", "high": "слабый"}
     return {
         "score": score,
         "riskLevel": risk,
         "summary": f"Профиль по демонстрационным правилам: {labels[risk]}, {score}/100. "
-                   "Это не вероятность дефолта и не решение об одобрении кредита.",
+        "Это не вероятность дефолта и не решение об одобрении кредита.",
         "factors": factors,
         "modelVersion": MODEL_VERSION,
         "featureVersion": FEATURE_VERSION,

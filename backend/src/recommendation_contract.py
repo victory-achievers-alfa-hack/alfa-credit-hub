@@ -1,7 +1,9 @@
 """Typed API contracts; business rules live in scoring/."""
+
 from decimal import Decimal
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, AwareDatetime, field_validator
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 Purpose = Literal["goods", "equipment", "cash_gap"]
 Preference = Literal["min_interest", "min_payment"]
@@ -15,7 +17,9 @@ class Contract(BaseModel):
 class RecommendationRequest(Contract):
     companyId: Annotated[str, Field(min_length=1, max_length=128)] | None = None
     purpose: Purpose
-    amount: Annotated[Decimal, Field(gt=0, le=10**12, decimal_places=2, allow_inf_nan=False)]
+    amount: Annotated[
+        Decimal, Field(gt=0, le=10**12, decimal_places=2, allow_inf_nan=False)
+    ]
     termMonths: Annotated[int, Field(strict=True, ge=1, le=120)]
     preference: Preference = "min_interest"
 
@@ -64,11 +68,27 @@ class Reason(Contract):
     message: str
 
 
+class Check(Contract):
+    id: str
+    label: str
+    value: str
+    description: str
+    state: Literal["success", "warning", "error"]
+
+
 class Evaluation(Offer):
     productId: str
     purpose: Purpose
-    assessment: Literal["eligible", "alternative", "need_info", "manual_review", "blocked", "unavailable"]
+    assessment: Literal[
+        "eligible",
+        "alternative",
+        "need_info",
+        "manual_review",
+        "blocked",
+        "unavailable",
+    ]
     reasons: list[Reason]
+    checks: list[Check]
     alternative: Offer | None
     recommendedAmount: Money | None
     scoring: Scoring
@@ -95,7 +115,9 @@ class RankedOffer(Contract):
     offer: Offer
     termChanged: bool
     amountShortfall: Money
-    group: Literal["requested", "other_terms", "reduced_amount", "requires_action", "unavailable"]
+    group: Literal[
+        "requested", "other_terms", "reduced_amount", "requires_action", "unavailable"
+    ]
     rankInGroup: Annotated[int, Field(ge=1)]
     rankingReason: str
 
