@@ -251,7 +251,10 @@ class CompanyDocument(Base):
 
     company: Mapped["Company"] = relationship(back_populates="documents")
     application_links: Mapped[list["ApplicationDocument"]] = relationship(
-        back_populates="document", cascade="all, delete-orphan", passive_deletes=True
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        overlaps="document_links",
     )
 
 
@@ -280,9 +283,11 @@ class ApplicationDocument(Base):
         DateTime(timezone=True), nullable=False, default=utc_now
     )
 
-    application: Mapped["Application"] = relationship(back_populates="document_links")
+    application: Mapped["Application"] = relationship(
+        back_populates="document_links", overlaps="application_links"
+    )
     document: Mapped["CompanyDocument"] = relationship(
-        back_populates="application_links"
+        back_populates="application_links", overlaps="application,document_links"
     )
     attached_by: Mapped["User"] = relationship()
 
