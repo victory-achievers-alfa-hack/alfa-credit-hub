@@ -3,7 +3,7 @@ from decimal import Decimal
 from pydantic import Field, model_validator
 
 from .applications import ApplicationDetailResponse
-from .base import ApiSchema
+from .base import ApiSchema, JsonDecimal
 from .enums import ApplicationStatus, BankDecisionKind
 from .profile import CompanyProfileResponse
 
@@ -13,7 +13,7 @@ class BankApplicationListItemResponse(ApiSchema):
     company_id: str
     company_name: str
     product_name: str
-    amount: Decimal = Field(..., ge=0)
+    amount: JsonDecimal = Field(..., ge=0)
     status: ApplicationStatus
 
 

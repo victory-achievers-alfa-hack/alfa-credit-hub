@@ -69,6 +69,26 @@ def test_client_isolation_and_bank_role(client: TestClient) -> None:
     assert forbidden.status_code == 403
 
 
+def test_decimal_fields_are_json_numbers(client: TestClient) -> None:
+    token = login(client, "client@demo.ru")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    application = client.get("/api/v1/applications/APP-2026-001", headers=headers)
+    assert application.status_code == 200, application.text
+    application_data = application.json()
+    assert type(application_data["coverage"]) is float
+    assert type(application_data["requestedAmount"]) is float
+    assert type(application_data["offer"]["amount"]) is float
+
+    company = client.get("/api/v1/companies/me", headers=headers)
+    assert company.status_code == 200, company.text
+    assert type(company.json()["monthlyRevenue"]) is float
+
+    catalog = client.get("/api/v1/credit-products")
+    assert catalog.status_code == 200, catalog.text
+    assert type(catalog.json()[0]["minAmount"]) is float
+
+
 def test_zernya_application_approval_and_disbursement(client: TestClient) -> None:
     client_token = login(client, "cafe@demo.ru")
     bank_token = login(client, "bank@demo.ru")

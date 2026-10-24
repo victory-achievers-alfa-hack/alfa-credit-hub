@@ -1,7 +1,6 @@
-from decimal import Decimal
-
 from pydantic import Field
-from .base import ApiSchema
+
+from .base import ApiSchema, JsonDecimal
 from .enums import CreditGoal
 
 
@@ -11,8 +10,8 @@ class CreditProductResponse(ApiSchema):
     short_name: str = Field(..., max_length=127)
     description: str
     purposes: list[CreditGoal]
-    min_amount: Decimal = Field(..., ge=0, examples=[100000])
-    max_amount: Decimal = Field(..., ge=0, examples=[3000000])
+    min_amount: JsonDecimal = Field(..., ge=0, examples=[100000])
+    max_amount: JsonDecimal = Field(..., ge=0, examples=[3000000])
     terms: list[int] = Field(..., examples=[[12, 24, 36]])
     rate: float = Field(..., description="Годовая ставка, %", examples=[24.0])
     accent: str

@@ -1,7 +1,8 @@
-from datetime import date, UTC, datetime
-from decimal import Decimal
+from datetime import UTC, date, datetime
 
 from pydantic import BaseModel, Field, field_validator
+
+from .base import JsonDecimal
 
 
 class FnsMockResponse(BaseModel):
@@ -22,6 +23,6 @@ class FnsMockResponse(BaseModel):
 class BkiMockResponse(BaseModel):
     inn: str = Field(..., pattern=r"^\d{10,12}$", examples=["7704821934"])
     has_delinquencies: bool = Field(..., description="Есть ли просрочки (!clean)")
-    monthly_debt_load: Decimal = Field(
+    monthly_debt_load: JsonDecimal = Field(
         ..., ge=0, description="Текущие платежи в месяц, ₽"
     )

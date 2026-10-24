@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
 
 from pydantic import EmailStr, Field, field_validator
-from .base import ApiSchema
+
+from .base import ApiSchema, JsonDecimal
 from .enums import UserRole
 
 
@@ -35,15 +35,17 @@ class UserMeResponse(ApiSchema):
 
 
 class FinancialProfileSchema(ApiSchema):
-    revenue: Decimal = Field(..., description="Месячная выручка, ₽", examples=[900000])
-    expenses: Decimal = Field(
+    revenue: JsonDecimal = Field(
+        ..., description="Месячная выручка, ₽", examples=[900000]
+    )
+    expenses: JsonDecimal = Field(
         ..., description="Расходы без платежей по долгам, ₽", examples=[740000]
     )
-    debt: Decimal = Field(
+    debt: JsonDecimal = Field(
         ..., description="Действующие кредитные платежи, ₽", examples=[120000]
     )
     clean: bool = Field(..., description="Без просрочек в БКИ")
-    turnover: list[Decimal] = Field(
+    turnover: list[JsonDecimal] = Field(
         ..., description="Динамика выручки за 12 месяцев для графика"
     )
 
@@ -65,9 +67,9 @@ class CompanyProfileResponse(ApiSchema):
     registration_date: date
     account: str
     representative: str
-    monthly_revenue: Decimal = Field(..., ge=0)
-    monthly_expenses: Decimal = Field(..., ge=0)
-    existing_payments: Decimal = Field(..., ge=0)
+    monthly_revenue: JsonDecimal = Field(..., ge=0)
+    monthly_expenses: JsonDecimal = Field(..., ge=0)
+    existing_payments: JsonDecimal = Field(..., ge=0)
     has_overdue: bool
     active: bool
     scoring_score: int = Field(..., ge=0, le=100)

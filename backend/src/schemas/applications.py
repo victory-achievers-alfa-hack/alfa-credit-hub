@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .base import ApiSchema
+from .base import ApiSchema, JsonDecimal
 from .enums import ApplicationStatus, CreditGoal
 
 
@@ -63,10 +63,10 @@ class ApplicationEventResponse(ApiSchema):
 
 class ApplicationOfferResponse(ApiSchema):
     id: str
-    amount: Decimal = Field(..., ge=0)
+    amount: JsonDecimal = Field(..., ge=0)
     term_months: int = Field(..., gt=0)
-    rate: Decimal = Field(..., ge=0)
-    monthly_payment: Decimal = Field(..., ge=0)
+    rate: JsonDecimal = Field(..., ge=0)
+    monthly_payment: JsonDecimal = Field(..., ge=0)
     reason: str
     created_at: datetime
 
@@ -78,7 +78,7 @@ class ApplicationListItemResponse(ApiSchema):
     product_id: str
     product_name: str
     purpose: CreditGoal
-    amount: Decimal = Field(..., ge=0)
+    amount: JsonDecimal = Field(..., ge=0)
     term_months: int = Field(..., gt=0)
     status: ApplicationStatus
     updated_at: datetime
@@ -90,11 +90,11 @@ class ApplicationDetailResponse(ApiSchema):
     product_id: str
     product_name: str
     purpose: CreditGoal
-    requested_amount: Decimal = Field(..., ge=0)
+    requested_amount: JsonDecimal = Field(..., ge=0)
     requested_term_months: int = Field(..., gt=0)
-    requested_rate: Decimal = Field(..., ge=0)
-    requested_monthly_payment: Decimal = Field(..., ge=0)
-    coverage: Decimal
+    requested_rate: JsonDecimal = Field(..., ge=0)
+    requested_monthly_payment: JsonDecimal = Field(..., ge=0)
+    coverage: JsonDecimal
     status: ApplicationStatus
     scoring: ScoringResultResponse
     checks: list[ApplicationCheckResponse]

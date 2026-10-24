@@ -1,4 +1,13 @@
+from decimal import Decimal
+from typing import Annotated
+
 from pydantic import BaseModel, ConfigDict
+from pydantic.functional_serializers import PlainSerializer
+
+JsonDecimal = Annotated[
+    Decimal,
+    PlainSerializer(float, return_type=float, when_used="json"),
+]
 
 
 def to_camel(value: str) -> str:
