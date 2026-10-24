@@ -1,8 +1,19 @@
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from fastapi import HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 
 from backend.src.dependency import CurrentUser
-from backend.src.schemas import bank as bank_schemas
+from backend.src.models import Application, Company, Notification, OfferDecision, User
 from backend.src.schemas import applications as application_schemas
+from backend.src.schemas import bank as bank_schemas
+from backend.src.schemas.enums import ApplicationStatus, BankDecisionKind
+from backend.src.service import applications as applications_service
+from backend.src.service import profile as profile_service
+from backend.src.service.application_state import ensure_application_transition
+from backend.src.service.realtime import realtime_connections
 
 
 def get_bank_applications(
@@ -10,19 +21,181 @@ def get_bank_applications(
     offset: int,
     db: Session,
 ) -> bank_schemas.BankApplicationListResponse:
-    pass
+    total = db.scalar(select(func.count()).select_from(Application)) or 0
+    applications = db.scalars(
+        select(Application)
+        .options(selectinload(Application.company), selectinload(Application.product))
+        .order_by(Application.updated_at.desc(), Application.id)
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return bank_schemas.BankApplicationListResponse(
+        items=[
+            bank_schemas.BankApplicationListItemResponse(
+                id=application.id,
+                company_id=application.company_id,
+                company_name=application.company.name,
+                product_name=application.product.name,
+                amount=application.amount,
+                status=application.status,
+            )
+            for application in applications
+        ],
+        total=total,
+    )
 
 
 def get_bank_application_by_id(
     id: str, user: CurrentUser, db: Session
 ) -> bank_schemas.BankApplicationDetailResponse:
-    pass
+    application = applications_service._load_application(db, id)
+    if application is None:
+        raise _not_found()
+    return bank_schemas.BankApplicationDetailResponse(
+        application=applications_service._application_response(application),
+        company=profile_service.get_user_companies(application.company_id, db),
+    )
 
 
-def make_bank_decision(
+async def make_bank_decision(
     application_id: str,
     request: bank_schemas.BankDecisionRequest,
     user: CurrentUser,
     db: Session,
 ) -> application_schemas.ApplicationDetailResponse:
-    pass
+    actor = db.scalar(
+        select(User).where(User.public_id == user.id, User.role == "bank")
+    )
+    if actor is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHENTICATED", "message": "Authentication required"},
+        )
+
+    application = applications_service._load_application(
+        db, application_id, for_update=True
+    )
+    if application is None:
+        raise _not_found()
+
+    decision_kind = request.kind.value
+    if request.kind in (BankDecisionKind.APPROVE, BankDecisionKind.ALTERNATIVE):
+        target_status = ApplicationStatus.OFFER.value
+        ensure_application_transition(
+            application.status, target_status, "bank", decision_kind
+        )
+        amount = request.amount if request.amount is not None else application.amount
+        term_months = (
+            request.term_months
+            if request.term_months is not None
+            else application.term_months
+        )
+        rate = request.rate if request.rate is not None else application.requested_rate
+        comment = request.comment
+        title = (
+            "Заявка одобрена"
+            if request.kind == BankDecisionKind.APPROVE
+            else "Банк предложил другие условия"
+        )
+        description = comment or "Банк сформировал кредитное предложение."
+        notification_tone = (
+            "positive" if request.kind == BankDecisionKind.APPROVE else "warning"
+        )
+    elif request.kind == BankDecisionKind.NEED_INFO:
+        target_status = ApplicationStatus.NEED_INFO.value
+        ensure_application_transition(
+            application.status, target_status, "bank", "request_info"
+        )
+        amount = term_months = rate = None
+        comment = request.comment
+        title = "Банку нужны дополнительные сведения"
+        description = comment or "Пожалуйста, предоставьте дополнительные сведения."
+        notification_tone = "warning"
+    else:
+        target_status = ApplicationStatus.REJECTED.value
+        ensure_application_transition(
+            application.status, target_status, "bank", "reject"
+        )
+        amount = term_months = rate = None
+        comment = request.comment
+        title = "По заявке принято решение"
+        description = comment or "Банк отклонил заявку."
+        notification_tone = "negative"
+
+    now = datetime.now(timezone.utc)
+    decision = OfferDecision(
+        id=f"DEC-{uuid4().hex}",
+        application_id=application.id,
+        actor_id=actor.id,
+        kind=decision_kind,
+        amount=amount,
+        term_months=term_months,
+        rate=rate,
+        comment=comment,
+        created_at=now,
+    )
+    application.decisions.append(decision)
+    application.bank_comment = comment
+    applications_service._transition_event(
+        application,
+        target_status,
+        actor,
+        f"bank_{decision_kind}",
+        title,
+        description,
+    )
+
+    client = application.creator
+    notification = Notification(
+        id=f"NTF-{uuid4().hex}",
+        user_id=client.id,
+        company_id=application.company_id,
+        application_id=application.id,
+        type=notification_tone,
+        title=title,
+        text=description,
+        created_at=now,
+    )
+    db.add(notification)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    response = applications_service._application_response(
+        applications_service._load_application(db, application_id)
+    )
+    application_event = {
+        "type": "application.updated",
+        "companyId": application.company_id,
+        "applicationId": application.id,
+        "status": application.status,
+        "payload": {"application": response.model_dump(mode="json", by_alias=True)},
+    }
+    notification_event = {
+        "type": "notification.created",
+        "userId": client.public_id,
+        "payload": {
+            "notification": {
+                "id": notification.id,
+                "companyId": application.company_id,
+                "applicationId": application.id,
+                "title": notification.title,
+                "message": notification.text,
+                "tone": notification.type,
+                "createdAt": notification.created_at.isoformat(),
+                "read": False,
+            }
+        },
+    }
+    await realtime_connections.publish(application_event)
+    await realtime_connections.publish(notification_event)
+    return response
+
+
+def _not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={"code": "RESOURCE_NOT_FOUND", "message": "Application not found"},
+    )

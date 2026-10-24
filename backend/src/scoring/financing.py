@@ -248,6 +248,36 @@ def assess_financing(
             "PREQUALIFIED",
             "Вариант проходит предварительные правила; это не окончательное одобрение.",
         )
+    checks = [
+        {
+            "id": "registry",
+            "label": "Реестр компаний",
+            "value": "Компания действует" if company["active"] else "Есть ограничения",
+            "description": "Статус и реквизиты сверены с синтетическим реестром",
+            "state": "success" if company["active"] else "error",
+        },
+        {
+            "id": "bki",
+            "label": "Кредитная история",
+            "value": "Есть просрочки" if company["hasOverdue"] else "Без просрочек",
+            "description": "Результат локального симулятора БКИ",
+            "state": "error" if company["hasOverdue"] else "success",
+        },
+        {
+            "id": "documents",
+            "label": "Комплект документов",
+            "value": "Полный комплект" if docs_ready else "Нужно уточнение",
+            "description": "Проверены синтетические документы компании",
+            "state": "success" if docs_ready else "warning",
+        },
+        {
+            "id": "coverage",
+            "label": "Покрытие платежей",
+            "value": f"{coverage:.2f}×",
+            "description": "Порог автоматического предварительного прохождения — 1,25×",
+            "state": "success" if covered else "warning",
+        },
+    ]
     return {
         "productId": product["id"],
         "purpose": purpose,
@@ -256,6 +286,7 @@ def assess_financing(
         "eligible": assessment == "eligible",
         "assessment": assessment,
         "reasons": reasons,
+        "checks": checks,
         "alternative": alternative,
         "recommendedAmount": alternative["amount"] if alternative else None,
         "scoring": scoring,

@@ -73,7 +73,7 @@ def sign_application(
 @router.post("/applications/{id}/disburse")
 def disburse_application(
     id: str,
-    user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(require_role("client")),
     db: Session = Depends(get_db),
 ) -> application_schemas.ApplicationDetailResponse:
     return applications_service.disburse_application(id, user, db)

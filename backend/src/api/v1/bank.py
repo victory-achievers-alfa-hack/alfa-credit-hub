@@ -30,10 +30,10 @@ def get_bank_application_by_id(
 
 
 @router.post("/bank/applications/{id}/decision")
-def make_bank_decision(
+async def make_bank_decision(
     id: str,
     request: bank_schemas.BankDecisionRequest,
     user: CurrentUser = Depends(require_role("bank")),
     db: Session = Depends(get_db),
 ) -> application_schemas.ApplicationDetailResponse:
-    return bank_service.make_bank_decision(id, request, user, db)
+    return await bank_service.make_bank_decision(id, request, user, db)

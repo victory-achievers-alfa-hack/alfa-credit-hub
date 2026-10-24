@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
 from fastapi import WebSocket
 
 from backend.src.dependency import CurrentUser
@@ -20,9 +23,13 @@ class RealtimeConnections:
         company_id = event.get("companyId")
         user_id = event.get("userId")
         message = {
-            key: value
-            for key, value in event.items()
-            if key not in {"companyId", "userId"}
+            "id": str(uuid4()),
+            "sentAt": datetime.now(timezone.utc).isoformat(),
+            **{
+                key: value
+                for key, value in event.items()
+                if key not in {"companyId", "userId"}
+            },
         }
         stale: list[WebSocket] = []
 
