@@ -2,7 +2,9 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class AssistantChatRequest(BaseModel):
-    question: str = Field(..., min_length=1, examples=["Почему не одобрили 800 тысяч?"], max_length=511)
+    question: str = Field(
+        ..., min_length=1, examples=["Почему не одобрили 800 тысяч?"], max_length=511
+    )
 
     @field_validator("question")
     @classmethod

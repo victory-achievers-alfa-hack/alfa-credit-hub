@@ -11,15 +11,13 @@ router = APIRouter()
 
 @router.get("/mocks/fns/{inn}")
 def get_mock_fns_check(
-        inn: int,
-        db: Session = Depends(get_db)
+    inn: int, db: Session = Depends(get_db)
 ) -> mocks_schemas.FnsMockResponse:
     return mocks_service.get_mock_fns_check(inn, db)
 
 
 @router.get("/mocks/bki/{inn}")
 def get_mock_bki_check(
-        inn: int,
-        db: Session = Depends(get_db)
+    inn: int, db: Session = Depends(get_db)
 ) -> mocks_schemas.BkiMockResponse:
     return mocks_service.get_mock_bki_check(inn, db)

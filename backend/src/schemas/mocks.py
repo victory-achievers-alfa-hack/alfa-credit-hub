@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class FnsMockResponse(BaseModel):
-    inn: str = Field( ..., pattern=r"^\d{10,12}$", examples=["7704821934"])
+    inn: str = Field(..., pattern=r"^\d{10,12}$", examples=["7704821934"])
     legal_name: str = Field(..., max_length=127)
     is_active: bool = True
     registered_since: date = datetime.now(UTC)
@@ -20,6 +20,8 @@ class FnsMockResponse(BaseModel):
 
 
 class BkiMockResponse(BaseModel):
-    inn: str = Field( ..., pattern=r"^\d{10,12}$", examples=["7704821934"])
+    inn: str = Field(..., pattern=r"^\d{10,12}$", examples=["7704821934"])
     has_delinquencies: bool = Field(..., description="Есть ли просрочки (!clean)")
-    monthly_debt_load: Decimal = Field(..., ge=0, description="Текущие платежи в месяц, ₽")
+    monthly_debt_load: Decimal = Field(
+        ..., ge=0, description="Текущие платежи в месяц, ₽"
+    )

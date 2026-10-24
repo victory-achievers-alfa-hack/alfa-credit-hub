@@ -19,11 +19,18 @@ class RealtimeConnections:
         event_type = event.get("type")
         company_id = event.get("companyId")
         user_id = event.get("userId")
-        message = {key: value for key, value in event.items() if key not in {"companyId", "userId"}}
+        message = {
+            key: value
+            for key, value in event.items()
+            if key not in {"companyId", "userId"}
+        }
         stale: list[WebSocket] = []
 
         for websocket, user in self._connections.items():
-            if event_type == "notification.created" or event_type == "notification.read":
+            if (
+                event_type == "notification.created"
+                or event_type == "notification.read"
+            ):
                 allowed = user.id == user_id
             elif user.role == "bank":
                 allowed = event_type == "application.updated"

@@ -36,7 +36,10 @@ def require_role(role: str):
         if user.role != role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "FORBIDDEN", "message": "Action is not allowed for this role"},
+                detail={
+                    "code": "FORBIDDEN",
+                    "message": "Action is not allowed for this role",
+                },
             )
         return user
 

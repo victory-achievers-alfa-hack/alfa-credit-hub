@@ -11,16 +11,16 @@ class Settings(BaseSettings):
     log_level: LogLevel
 
     model_config = SettingsConfigDict(
-        env_file='.env', env_file_encoding='utf-8', extra='ignore'
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
 
 class LogLevel(StrEnum):
-    DEBUG = 'DEBUG'
-    INFO = 'INFO'
-    WARNING = 'WARNING'
-    ERROR = 'ERROR'
-    CRITICAL = 'CRITICAL'
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
 
 settings = Settings()

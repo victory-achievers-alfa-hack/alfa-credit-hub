@@ -10,7 +10,9 @@ router = APIRouter()
 
 
 @router.post("/demo/reset")
-def reset_demo_db(db: Session = Depends(get_db)) -> system_schemas.StatusMessageResponse:
+def reset_demo_db(
+    db: Session = Depends(get_db),
+) -> system_schemas.StatusMessageResponse:
     return system_service.reset_demo_db(db)
 
 

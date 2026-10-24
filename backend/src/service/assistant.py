@@ -4,7 +4,6 @@ from backend.src.schemas import assistant as assistant_schemas
 
 
 def chat_to_assistant(
-        question: assistant_schemas.AssistantChatRequest,
-        db: Session
+    question: assistant_schemas.AssistantChatRequest, db: Session
 ) -> assistant_schemas.AssistantChatResponse:
     pass

@@ -35,10 +35,16 @@ class UserMeResponse(ApiSchema):
 
 class FinancialProfileSchema(ApiSchema):
     revenue: Decimal = Field(..., description="Месячная выручка, ₽", examples=[900000])
-    expenses: Decimal = Field(..., description="Расходы без платежей по долгам, ₽", examples=[740000])
-    debt: Decimal = Field(..., description="Действующие кредитные платежи, ₽", examples=[120000])
+    expenses: Decimal = Field(
+        ..., description="Расходы без платежей по долгам, ₽", examples=[740000]
+    )
+    debt: Decimal = Field(
+        ..., description="Действующие кредитные платежи, ₽", examples=[120000]
+    )
     clean: bool = Field(..., description="Без просрочек в БКИ")
-    turnover: list[Decimal] = Field(..., description="Динамика выручки за 12 месяцев для графика")
+    turnover: list[Decimal] = Field(
+        ..., description="Динамика выручки за 12 месяцев для графика"
+    )
 
 
 class CompanyDocumentSchema(ApiSchema):

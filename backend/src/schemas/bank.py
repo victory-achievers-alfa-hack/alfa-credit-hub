@@ -38,9 +38,14 @@ class BankDecisionRequest(ApiSchema):
     def validate_decision_fields(self):
         if self.kind == BankDecisionKind.ALTERNATIVE:
             if self.amount is None or self.term_months is None or self.rate is None:
-                raise ValueError("amount, termMonths and rate are required for an offer")
+                raise ValueError(
+                    "amount, termMonths and rate are required for an offer"
+                )
             if not self.comment:
                 raise ValueError("comment is required for an alternative offer")
-        if self.kind in (BankDecisionKind.NEED_INFO, BankDecisionKind.REJECT) and not self.comment:
+        if (
+            self.kind in (BankDecisionKind.NEED_INFO, BankDecisionKind.REJECT)
+            and not self.comment
+        ):
             raise ValueError("comment is required for this decision")
         return self

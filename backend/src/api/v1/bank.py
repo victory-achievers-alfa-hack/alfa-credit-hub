@@ -12,28 +12,28 @@ router = APIRouter()
 
 @router.get("/bank/applications")
 def get_bank_applications(
-        limit: int = Query(default=20, gt=0, le=100),
-        offset: int = Query(default=0, ge=0),
-        user: CurrentUser = Depends(require_role("bank")),
-        db: Session = Depends(get_db),
+    limit: int = Query(default=20, gt=0, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: CurrentUser = Depends(require_role("bank")),
+    db: Session = Depends(get_db),
 ) -> bank_schemas.BankApplicationListResponse:
     return bank_service.get_bank_applications(limit, offset, db)
 
 
 @router.get("/bank/applications/{id}")
 def get_bank_application_by_id(
-        id: str,
-        user: CurrentUser = Depends(require_role("bank")),
-        db: Session = Depends(get_db)
+    id: str,
+    user: CurrentUser = Depends(require_role("bank")),
+    db: Session = Depends(get_db),
 ) -> bank_schemas.BankApplicationDetailResponse:
-    return bank_service.get_bank_application_by_id(id, db)
+    return bank_service.get_bank_application_by_id(id, user, db)
 
 
 @router.post("/bank/applications/{id}/decision")
 def make_bank_decision(
-        id: str,
-        request: bank_schemas.BankDecisionRequest,
-        user: CurrentUser = Depends(require_role("bank")),
-        db: Session = Depends(get_db)
+    id: str,
+    request: bank_schemas.BankDecisionRequest,
+    user: CurrentUser = Depends(require_role("bank")),
+    db: Session = Depends(get_db),
 ) -> application_schemas.ApplicationDetailResponse:
     return bank_service.make_bank_decision(id, request, user, db)

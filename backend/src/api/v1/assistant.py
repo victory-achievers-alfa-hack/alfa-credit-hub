@@ -11,7 +11,6 @@ router = APIRouter()
 
 @router.post("/assistant/chat")
 def chat_to_assistant(
-        question: assistant_schemas.AssistantChatRequest,
-        db: Session = Depends(get_db)
+    question: assistant_schemas.AssistantChatRequest, db: Session = Depends(get_db)
 ) -> assistant_schemas.AssistantChatResponse:
     return assistant_service.chat_to_assistant(question, db)

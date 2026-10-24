@@ -34,7 +34,11 @@ def _payment(amount: Decimal, rate: Decimal, term: int) -> Decimal:
     with localcontext() as ctx:
         ctx.prec = 40
         monthly = rate / 1200
-        payment = amount / term if monthly == 0 else amount * monthly / (1 - (1 + monthly) ** -term)
+        payment = (
+            amount / term
+            if monthly == 0
+            else amount * monthly / (1 - (1 + monthly) ** -term)
+        )
         return payment.quantize(CENT, rounding=ROUND_CEILING)
 
 
@@ -58,9 +62,15 @@ def loan_quote(amount: Any, annual_rate: Any, term_months: int) -> dict[str, Any
             last = min(payment, due).quantize(CENT, rounding=ROUND_HALF_UP)
             total += last
             balance = max(Decimal(0), due - last)
-    return {"amount": float(principal), "rate": float(rate), "termMonths": term,
-            "monthlyPayment": float(payment), "lastPayment": float(last),
-            "totalRepayment": float(total), "interestAmount": float(total - principal)}
+    return {
+        "amount": float(principal),
+        "rate": float(rate),
+        "termMonths": term,
+        "monthlyPayment": float(payment),
+        "lastPayment": float(last),
+        "totalRepayment": float(total),
+        "interestAmount": float(total - principal),
+    }
 
 
 def _validate_product(product: Mapping[str, Any]) -> tuple[Decimal, Decimal, Decimal]:
@@ -75,8 +85,10 @@ def _validate_product(product: Mapping[str, Any]) -> tuple[Decimal, Decimal, Dec
         raise InputError("product.terms", "nonempty list required")
     for term in terms:
         _term(term)
-    if not isinstance(purposes, list) or not purposes or any(
-        p not in ("goods", "equipment", "cash_gap") for p in purposes
+    if (
+        not isinstance(purposes, list)
+        or not purposes
+        or any(p not in ("goods", "equipment", "cash_gap") for p in purposes)
     ):
         raise InputError("product.purposes", "supported purposes required")
     return minimum, maximum, _rate(product.get("rate"))
@@ -89,17 +101,29 @@ def _documents_ready(company: Mapping[str, Any]) -> bool:
     if not isinstance(documents, list):
         raise InputError("documents", "list required")
     seen = {}
+    seen_ids = set()
     for document in documents:
         if not isinstance(document, Mapping) or not isinstance(document.get("id"), str):
             raise InputError("documents", "each document must have a string id")
-        if document["id"] in seen or document.get("status") not in ("ready", "attention"):
-            raise InputError("documents", "unique ids and ready/attention statuses required")
-        seen[document["id"]] = document["status"]
-    return all(seen.get(key) == "ready" for key in REQUIRED_DOCUMENTS)
+        kind = document.get("kind", document["id"])
+        if not isinstance(kind, str) or not kind:
+            raise InputError("documents", "each document must have a kind")
+        if (
+            document["id"] in seen_ids
+            or kind in seen
+            or document.get("status") not in ("ready", "verified", "attention")
+        ):
+            raise InputError(
+                "documents", "unique ids and recognized document statuses required"
+            )
+        seen_ids.add(document["id"])
+        seen[kind] = document["status"]
+    return all(seen.get(key) in ("ready", "verified") for key in REQUIRED_DOCUMENTS)
 
 
-def _affordable_amount(budget: Decimal, maximum: Decimal, minimum: Decimal,
-                       rate: Decimal, term: int) -> Decimal | None:
+def _affordable_amount(
+    budget: Decimal, maximum: Decimal, minimum: Decimal, rate: Decimal, term: int
+) -> Decimal | None:
     """Maximum 10,000-ruble grid amount passing the actual rounded-payment check."""
     lo, hi = 0, int(maximum // AMOUNT_STEP)
     while lo < hi:
@@ -117,9 +141,15 @@ def _affordable_amount(budget: Decimal, maximum: Decimal, minimum: Decimal,
     return None
 
 
-def assess_financing(company: Mapping[str, Any], product: Mapping[str, Any], *,
-                     purpose: str, amount: Any, term_months: int,
-                     evaluated_at: datetime) -> dict[str, Any]:
+def assess_financing(
+    company: Mapping[str, Any],
+    product: Mapping[str, Any],
+    *,
+    purpose: str,
+    amount: Any,
+    term_months: int,
+    evaluated_at: datetime,
+) -> dict[str, Any]:
     """Assess one offer, retaining reason codes and separating score from policy.
 
     assessment is NOT an application status: eligible, alternative, need_info,
@@ -150,11 +180,20 @@ def assess_financing(company: Mapping[str, Any], product: Mapping[str, Any], *,
         reasons.append({"code": code, "message": message})
 
     if not company["active"]:
-        reason("INACTIVE_COMPANY", "Компания не действует; предварительное прохождение заблокировано.")
+        reason(
+            "INACTIVE_COMPANY",
+            "Компания не действует; предварительное прохождение заблокировано.",
+        )
     if company["hasOverdue"]:
-        reason("CURRENT_OVERDUE", "Есть текущая просрочка; уменьшение суммы не снимает ограничение.")
+        reason(
+            "CURRENT_OVERDUE",
+            "Есть текущая просрочка; уменьшение суммы не снимает ограничение.",
+        )
     if not docs_ready:
-        reason("DOCUMENTS_REQUIRED", "Нужны готовые сведения реестра, БКИ, выписка и финансовая отчётность.")
+        reason(
+            "DOCUMENTS_REQUIRED",
+            "Нужны готовые сведения реестра, БКИ, выписка и финансовая отчётность.",
+        )
     if scoring["score"] < MIN_SCORE:
         reason("SCORE_REVIEW", "Балл ниже 70: требуется ручное рассмотрение профиля.")
     compatible = purpose in product["purposes"] and term in product["terms"]
@@ -180,24 +219,46 @@ def assess_financing(company: Mapping[str, Any], product: Mapping[str, Any], *,
         assessment = "eligible"
     else:
         budget = flow / MIN_COVERAGE - existing
-        candidate = _affordable_amount(budget, min(principal, maximum), minimum, rate, term)
+        candidate = _affordable_amount(
+            budget, min(principal, maximum), minimum, rate, term
+        )
         if candidate is not None and candidate < principal:
             alt_quote = loan_quote(candidate, rate, term)
             alt_payment = Decimal(str(alt_quote["monthlyPayment"]))
             if flow < MIN_COVERAGE * (existing + alt_payment):
                 raise ArithmeticError("alternative violates coverage policy")
-            alternative = {**alt_quote, "coverage": float(flow / (existing + alt_payment)),
-                           "eligible": True}
+            alternative = {
+                **alt_quote,
+                "coverage": float(flow / (existing + alt_payment)),
+                "eligible": True,
+            }
             assessment = "alternative"
-            reason("LOWER_AMOUNT_AVAILABLE", "Доступна меньшая сумма на том же сроке; требуется согласие клиента.")
+            reason(
+                "LOWER_AMOUNT_AVAILABLE",
+                "Доступна меньшая сумма на том же сроке; требуется согласие клиента.",
+            )
         else:
             assessment = "unavailable"
-            reason("NO_AFFORDABLE_AMOUNT", "Нет доступной суммы в пределах продукта на выбранном сроке.")
+            reason(
+                "NO_AFFORDABLE_AMOUNT",
+                "Нет доступной суммы в пределах продукта на выбранном сроке.",
+            )
     if assessment == "eligible":
-        reason("PREQUALIFIED", "Вариант проходит предварительные правила; это не окончательное одобрение.")
-    return {"productId": product["id"], "purpose": purpose, **quote,
-            "coverage": float(coverage), "eligible": assessment == "eligible",
-            "assessment": assessment, "reasons": reasons, "alternative": alternative,
-            "recommendedAmount": alternative["amount"] if alternative else None,
-            "scoring": scoring, "policyVersion": POLICY_VERSION,
-            "calculatedAt": scoring["calculatedAt"]}
+        reason(
+            "PREQUALIFIED",
+            "Вариант проходит предварительные правила; это не окончательное одобрение.",
+        )
+    return {
+        "productId": product["id"],
+        "purpose": purpose,
+        **quote,
+        "coverage": float(coverage),
+        "eligible": assessment == "eligible",
+        "assessment": assessment,
+        "reasons": reasons,
+        "alternative": alternative,
+        "recommendedAmount": alternative["amount"] if alternative else None,
+        "scoring": scoring,
+        "policyVersion": POLICY_VERSION,
+        "calculatedAt": scoring["calculatedAt"],
+    }
