@@ -14,8 +14,8 @@ class LoginRequest(ApiSchema):
 
 
 class LoginResponse(ApiSchema):
-    access_token: str | None = None
-    token_type: str | None = None
+    access_token: str
+    token_type: str = "bearer"
     user: UserMeResponse
 
 
