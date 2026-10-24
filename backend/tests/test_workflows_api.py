@@ -1,15 +1,14 @@
 from collections.abc import Generator
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from backend.main import app
 from backend.src.database import Base
 from backend.src.dependency import get_db
 from backend.src.seed import seed_demo_data
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 @pytest.fixture
@@ -87,6 +86,36 @@ def test_decimal_fields_are_json_numbers(client: TestClient) -> None:
     catalog = client.get("/api/v1/credit-products")
     assert catalog.status_code == 200, catalog.text
     assert type(catalog.json()[0]["minAmount"]) is float
+
+
+def test_http_notifications_match_realtime_payload_fields(client: TestClient) -> None:
+    token = login(client, "client@demo.ru")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    listed = client.get("/api/v1/notifications", headers=headers)
+    assert listed.status_code == 200, listed.text
+    notification = listed.json()["items"][0]
+    assert set(notification) == {
+        "id",
+        "companyId",
+        "applicationId",
+        "title",
+        "message",
+        "tone",
+        "createdAt",
+        "read",
+    }
+    assert notification["companyId"] == "city"
+    assert notification["applicationId"] == "APP-2026-001"
+    assert notification["tone"] == "warning"
+    assert notification["read"] is False
+
+    marked = client.post(
+        f"/api/v1/notifications/{notification['id']}/read", headers=headers
+    )
+    assert marked.status_code == 200, marked.text
+    assert set(marked.json()) == set(notification)
+    assert marked.json()["read"] is True
 
 
 def test_zernya_application_approval_and_disbursement(client: TestClient) -> None:

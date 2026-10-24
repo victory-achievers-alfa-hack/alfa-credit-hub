@@ -7,11 +7,13 @@ from .base import ApiSchema
 
 class NotificationResponse(ApiSchema):
     id: str
-    type: str
+    company_id: str | None
+    application_id: str | None
     title: str
-    text: str
-    is_read: bool
+    message: str
+    tone: str
     created_at: datetime
+    read: bool
 
 
 class NotificationListResponse(ApiSchema):

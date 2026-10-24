@@ -96,11 +96,13 @@ def _notification_response(
 ) -> notification_schemas.NotificationResponse:
     return notification_schemas.NotificationResponse(
         id=notification.id,
-        type=notification.type,
+        company_id=notification.company_id,
+        application_id=notification.application_id,
         title=notification.title,
-        text=notification.text,
-        is_read=notification.read_at is not None,
+        message=notification.text,
+        tone=notification.type,
         created_at=notification.created_at,
+        read=notification.read_at is not None,
     )
 
 
