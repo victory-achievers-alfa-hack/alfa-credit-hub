@@ -410,6 +410,12 @@ class Notification(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    company_id: Mapped[str | None] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    application_id: Mapped[str | None] = mapped_column(
+        ForeignKey("applications.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     type: Mapped[str] = mapped_column(String(64), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)

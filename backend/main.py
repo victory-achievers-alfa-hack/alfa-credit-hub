@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,11 +14,30 @@ from backend.src.api.v1.profile import router as profile_router
 from backend.src.api.v1.recommendations import router as recommendations_router
 from backend.src.api.v1.system import router as system_router
 from backend.src.database import SessionLocal, engine
-from backend.src.models import Base, SCORING_POLICY_VERSION, ScoringRule
-from backend.src.scoring.rules import MODEL_VERSION
+from backend.src.models import Base, Company, SCORING_POLICY_VERSION, ScoringRule
 from backend.src.schemas.errors import ErrorResponse
+from backend.src.scoring.rules import MODEL_VERSION
+from backend.src.seed import seed_demo_data
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        if db.get(ScoringRule, SCORING_POLICY_VERSION) is None:
+            db.add(
+                ScoringRule(
+                    version=SCORING_POLICY_VERSION,
+                    parameters={"modelVersion": MODEL_VERSION},
+                )
+            )
+            db.commit()
+        if db.query(Company.id).first() is None:
+            seed_demo_data(db)
+    yield
 
 app = FastAPI(
+    lifespan=lifespan,
     responses={
         401: {"model": ErrorResponse, "description": "Authentication required"},
         403: {"model": ErrorResponse, "description": "Role is not allowed"},
@@ -46,16 +67,3 @@ app.include_router(notifications_router, prefix="/api/v1", tags=["notifications"
 app.include_router(profile_router, prefix="/api/v1", tags=["profile"])
 app.include_router(recommendations_router, prefix="/api/v1", tags=["recommendations"])
 app.include_router(system_router, prefix="/api/v1", tags=["system"])
-
-
-Base.metadata.create_all(bind=engine)
-
-with SessionLocal() as db:
-    if db.get(ScoringRule, SCORING_POLICY_VERSION) is None:
-        db.add(
-            ScoringRule(
-                version=SCORING_POLICY_VERSION,
-                parameters={"modelVersion": MODEL_VERSION},
-            )
-        )
-        db.commit()
