@@ -1,48 +1,83 @@
-# React + TypeScript + Vite
+# Альфа / Поток — frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Кредитный кабинет предпринимателя и рабочее место сотрудника банка.
 
-Currently, two official plugins are available:
+## Стек
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19
+- TypeScript
+- Vite
+- React Router
+- `@alfalab/core-components`
+- WebSocket (`ws`) для realtime-демо
 
-## React Compiler
+## Запуск
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+В первом терминале запустите realtime relay:
 
+```bash
+npm run realtime
+```
 
-/login                      -> Страница входа (admin/admin или Альфа-ID)
-/                           -> Редирект на /client (если авторизован) или на /login
+Во втором терминале запустите frontend:
 
---- Контур Клиента (доступен только с role === 'client') ---
-/client                     -> Витрина кредитов и умный калькулятор
-/client/apply               -> Форма подачи заявки с автоподтягиванием по ИНН
-/client/applications        -> Список заявок текущего предпринимателя
-/client/applications/:id    -> Трекер статуса, оффер, подписание договора
+```bash
+npm run dev
+```
 
---- Контур Банка (доступен только с role === 'bank') ---
-/bank                       -> Дашборд андеррайтера (список всех заявок)
-/bank/applications/:id      -> Карточка разбора заявки (скоринг, XAI, решение)
+Проверки:
 
-*                           -> 404 (в стиле Альфа-Банка)
+```bash
+npm run lint
+npm run build
+npm run realtime:test
+```
+
+## Демо-аккаунты
+
+Пароль для всех аккаунтов: `123456`.
+
+| Роль | Логин | Профиль |
+|---|---|---|
+| Клиент | `client@demo.ru` | Магазин «Город» |
+| Клиент | `cafe@demo.ru` | Кофейня «Зёрна» |
+| Клиент | `vector@demo.ru` | ООО «Вектор» |
+| Банк | `bank@demo.ru` | Андеррайтер |
+
+## Маршруты
+
+### Клиент
+
+- `/client` — главная и финансовый обзор
+- `/client/business` — профиль компании и документы
+- `/client/financing` — подбор кредитного продукта
+- `/client/apply` — подтверждение и отправка заявки
+- `/client/applications` — список заявок
+- `/client/applications/:id` — статус, оффер, подписание и выдача
+
+### Банк
+
+- `/bank` — очередь заявок
+- `/bank/applications/:id` — проверки, скоринг и банковское решение
+
+## Текущее хранение данных
+
+До подключения backend приложение использует браузерное хранилище:
+
+- `alfa_stream_user_v2` в `sessionStorage` — активный пользователь текущей вкладки;
+- `alfa_stream_applications_v2` в `localStorage` — заявки и история переходов;
+- `alfa_stream_notifications_v1` в `localStorage` — клиентские уведомления и признак прочтения.
+
+Изменения заявок и уведомлений синхронизируются между вкладками через `storage`, а между разными браузерами — через локальный WebSocket relay `ws://localhost:8080`.
+
+Кнопка «Сбросить демо» в банковском кабинете возвращает исходные сценарии.
+
+## Что уже сделано и что нужно от команды
+
+Полная передача frontend, список реализованных функций и ожидания от backend и аналитика находятся в [корневом README](../README.md).
+
+Требования к интеграции описаны в [`INTEGRATION.md`](./INTEGRATION.md).

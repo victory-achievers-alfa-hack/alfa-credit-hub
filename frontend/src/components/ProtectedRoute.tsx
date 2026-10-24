@@ -1,25 +1,24 @@
-import React from 'react';
+import type { ReactElement } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
+import type { UserRole } from '../types/credit';
 
 interface ProtectedRouteProps {
-  children: React.ReactElement;
-  requiredRole?: 'client' | 'bank';
+  children: ReactElement;
+  requiredRole?: UserRole;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { currentUser } = useAuth();
   const location = useLocation();
 
-  // Если не авторизован -> на страницу входа
   if (!currentUser) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Если зашел клиент на адрес банка -> в /client
   if (requiredRole && currentUser.role !== requiredRole) {
     return <Navigate to={currentUser.role === 'bank' ? '/bank' : '/client'} replace />;
   }
 
   return children;
-};
+}

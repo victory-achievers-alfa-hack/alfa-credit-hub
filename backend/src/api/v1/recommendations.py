@@ -1,18 +1,26 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-
-from backend.src.dependency import CurrentUser, get_db, require_role
-from backend.src.service import recommendations as recommendations_service
-from backend.src.schemas import recommendations as recommendations_schemas
+from fastapi import APIRouter, Depends, HTTPException
+from backend.src.recommendation_contract import RecommendationRequest, RecommendationResponse, ErrorResponse
+from backend.src.service.recommendations import Actor, RecommendationStore, RecommendationError, create_recommendations
 
 
 router = APIRouter()
 
 
-@router.post("/recommendations")
-def set_recommendations(
-        request: recommendations_schemas.RecommendationRequest,
-        user: CurrentUser = Depends(require_role("client")),
-        db: Session = Depends(get_db)
-) -> recommendations_schemas.RecommendationResponse:
-    return recommendations_service.set_recommendations(request, user.company_id, db)
+def get_recommendation_actor() -> Actor:
+    # Must be wired to verified session/token auth, never unverified identity headers.
+    raise HTTPException(401, detail={"code": "AUTH_REQUIRED", "message": "Требуется авторизация."})
+
+
+def get_recommendation_store() -> RecommendationStore:
+    raise HTTPException(503, detail={"code": "STORE_NOT_CONFIGURED", "message": "Сервис расчёта не подключён."})
+
+
+@router.post("/recommendations", response_model=RecommendationResponse,
+             responses={status: {"model": ErrorResponse} for status in (401, 404, 409, 503)})
+def recommendations(request: RecommendationRequest,
+                    actor: Actor = Depends(get_recommendation_actor),
+                    store: RecommendationStore = Depends(get_recommendation_store)) -> RecommendationResponse:
+    try:
+        return create_recommendations(request, actor, store)
+    except RecommendationError as exc:
+        raise HTTPException(exc.status, detail={"code": exc.code, "message": exc.message}) from exc
