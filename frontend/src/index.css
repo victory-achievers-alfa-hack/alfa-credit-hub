@@ -3109,8 +3109,7 @@ a:focus-visible {
   }
 
   .brand__copy small,
-  .user-menu__copy,
-  .logout-button {
+  .user-menu__copy {
     display: none !important;
   }
 

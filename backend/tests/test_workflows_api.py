@@ -224,3 +224,81 @@ def test_vector_need_info_review_rejection_and_invalid_transition(
     )
     assert invalid_transition.status_code == 409
     assert invalid_transition.json()["code"] == "INVALID_STATUS_TRANSITION"
+
+
+def test_cookie_logout(client: TestClient) -> None:
+    login(client, "cafe@demo.ru")
+    assert client.get("/api/v1/me").status_code == 200
+    assert client.post("/api/v1/auth/logout").status_code == 204
+    assert client.get("/api/v1/me").status_code == 401
+
+
+@pytest.mark.parametrize("kind", ["approve", "alternative"])
+def test_bank_cannot_bypass_current_eligibility(client: TestClient, kind: str) -> None:
+    token = login(client, "bank@demo.ru")
+    headers = {"Authorization": f"Bearer {token}"}
+    url = "/api/v1/bank/applications/APP-2026-003"
+    before = client.get(url, headers=headers).json()
+    payload = {"kind": kind}
+    if kind == "alternative":
+        payload.update(amount=100000, termMonths=24, rate=24, comment="Проверка альтернативы")
+    response = client.post(url + "/decision", headers=headers, json=payload)
+    assert response.status_code == 409, response.text
+    assert response.json()["code"] == "OFFER_NOT_ELIGIBLE"
+    after = client.get(url, headers=headers).json()
+    assert after == before
+
+
+def test_profile_score_is_calculated_from_current_data(client: TestClient) -> None:
+    from backend.src.models import Company
+    from sqlalchemy import select
+    session_generator = app.dependency_overrides[get_db]()
+    db = next(session_generator)
+    company = db.scalar(select(Company).where(Company.id == "city"))
+    company.scoring_score = 1
+    db.commit()
+    try:
+        login(client, "client@demo.ru")
+        response = client.get("/api/v1/companies/me")
+        assert response.status_code == 200, response.text
+        assert response.json()["scoringScore"] != 1
+    finally:
+        session_generator.close()
+
+
+def test_recommendation_audit_to_new_application_disbursement(client: TestClient) -> None:
+    from backend.src.models import RecommendationAudit
+    token = login(client, "cafe@demo.ru")
+    headers = {"Authorization": f"Bearer {token}"}
+    calculated = client.post("/api/v1/recommendations", headers=headers, json={
+        "purpose": "goods", "amount": 800000, "termMonths": 24,
+        "preference": "min_interest",
+    })
+    assert calculated.status_code == 200, calculated.text
+    data = calculated.json()
+    session_generator = app.dependency_overrides[get_db]()
+    db = next(session_generator)
+    try:
+        audit = db.get(RecommendationAudit, data["evaluationId"])
+        assert audit is not None
+        assert audit.record["result"] == data
+    finally:
+        session_generator.close()
+    choice = data["groups"]["requested"][0]
+    created = client.post("/api/v1/applications", headers=headers, json={
+        "productId": choice["product"]["id"], "purpose": "goods",
+        "amount": choice["offer"]["amount"], "termMonths": choice["offer"]["termMonths"],
+    })
+    assert created.status_code == 200, created.text
+    application = created.json()
+    assert application["scoring"]["modelVersion"] == "rules-v1.0.0"
+    application_id = application["id"]
+    bank_token = login(client, "bank@demo.ru")
+    approved = client.post(f"/api/v1/bank/applications/{application_id}/decision",
+        headers={"Authorization": f"Bearer {bank_token}"}, json={"kind": "approve"})
+    assert approved.status_code == 200, approved.text
+    for endpoint, expected in (("accept", "sign"), ("sign", "ready"), ("disburse", "disbursed")):
+        response = client.post(f"/api/v1/applications/{application_id}/{endpoint}",
+            headers=headers, json={"accepted": True} if endpoint == "accept" else None)
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == expected

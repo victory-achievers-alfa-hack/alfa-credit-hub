@@ -16,7 +16,7 @@ export type CheckState = 'success' | 'warning' | 'error';
 export interface UserProfile {
   id: string;
   email: string;
-  password: string;
+  password?: string;
   role: UserRole;
   name: string;
   companyId?: string;
@@ -78,6 +78,11 @@ export interface CreditProduct {
 }
 
 export interface Recommendation {
+  amount?: number;
+  termMonths?: number;
+  interestAmount?: number;
+  group?: string;
+  rankingReason?: string;
   product: CreditProduct;
   monthlyPayment: number;
   coverage: number;
@@ -155,6 +160,7 @@ export interface CreditApplication {
 }
 
 export interface RecommendationInput {
+  preference?: 'min_interest' | 'min_payment';
   companyId: string;
   purpose: CreditPurpose;
   amount: number;
