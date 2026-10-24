@@ -28,7 +28,9 @@ export function BusinessPage() {
           <Typography.Title tag="h2" view="medium" weight="bold">{company.legalName}</Typography.Title>
           <p>{company.okved}</p>
           <div className="business-summary__tags">
-            <span className="soft-tag soft-tag--positive">Компания действует</span>
+            <span className={`soft-tag${company.active ? ' soft-tag--positive' : ' soft-tag--negative'}`}>
+              {company.active ? 'Компания действует' : 'Компания неактивна'}
+            </span>
             <span className={`soft-tag${company.hasOverdue ? ' soft-tag--negative' : ' soft-tag--positive'}`}>
               {company.hasOverdue ? 'Есть просрочки' : 'Без просрочек'}
             </span>
@@ -77,14 +79,14 @@ export function BusinessPage() {
           <div className="document-list">
             {company.documents.map((document) => (
               <div className="document-row" key={document.id}>
-                <span className={`document-row__icon${document.status === 'attention' ? ' document-row__icon--attention' : ''}`}>
-                  {document.status === 'ready' ? '✓' : '!'}
+                <span className={`document-row__icon${['ready', 'verified'].includes(document.status) ? '' : ' document-row__icon--attention'}`}>
+                  {['ready', 'verified'].includes(document.status) ? '✓' : '!'}
                 </span>
                 <span className="document-row__copy">
                   <strong>{document.name}</strong>
                   <small>{document.description}</small>
                 </span>
-                <time>{document.updatedAt}</time>
+                <time>{formatDate(document.updatedAt)}</time>
               </div>
             ))}
           </div>

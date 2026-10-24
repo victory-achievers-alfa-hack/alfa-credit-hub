@@ -332,6 +332,12 @@ export function getRecommendations(
 
       return {
         product,
+        amount,
+        termMonths,
+        rate: product.rate,
+        interestAmount: monthlyPayment * termMonths - amount,
+        group: eligible ? 'requested' as const : 'requires_action' as const,
+        rankingReason: eligible ? 'Лучшие доступные условия по выбранному приоритету.' : 'Требуется ручное рассмотрение.',
         monthlyPayment,
         coverage,
         eligible,

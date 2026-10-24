@@ -1,6 +1,8 @@
 import type { RealtimeEnvelope, RealtimeEvent, RealtimeServerEvent } from './types';
 
 type RealtimeListener = (message: RealtimeEnvelope<RealtimeServerEvent>) => void;
+export type RealtimeConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'unauthorized';
+type RealtimeStatusListener = (status: RealtimeConnectionStatus) => void;
 
 const MAX_QUEUE_SIZE = 50;
 const MAX_RECONNECT_DELAY = 10_000;
@@ -16,7 +18,9 @@ export class RealtimeClient {
   private reconnectTimer: number | null = null;
   private reconnectAttempt = 0;
   private stopped = false;
+  private status: RealtimeConnectionStatus = 'idle';
   private readonly listeners = new Set<RealtimeListener>();
+  private readonly statusListeners = new Set<RealtimeStatusListener>();
   private readonly queue: RealtimeEnvelope<RealtimeEvent>[] = [];
   private readonly url: string;
 
@@ -29,10 +33,12 @@ export class RealtimeClient {
     if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING) return;
 
     this.stopped = false;
+    this.setStatus(this.reconnectAttempt > 0 ? 'reconnecting' : 'connecting');
     this.socket = new WebSocket(this.url);
 
     this.socket.addEventListener('open', () => {
       this.reconnectAttempt = 0;
+      this.setStatus('connected');
       this.flushQueue();
     });
 
@@ -48,9 +54,18 @@ export class RealtimeClient {
       }
     });
 
-    this.socket.addEventListener('close', () => {
+    this.socket.addEventListener('close', (event) => {
       this.socket = null;
-      if (!this.stopped) this.scheduleReconnect();
+      if (event.code === 4401) {
+        this.stopped = true;
+        this.setStatus('unauthorized');
+        window.dispatchEvent(new Event('session-expired'));
+        return;
+      }
+      if (!this.stopped) {
+        this.setStatus('reconnecting');
+        this.scheduleReconnect();
+      }
     });
   }
 
@@ -78,12 +93,19 @@ export class RealtimeClient {
     return () => this.listeners.delete(listener);
   }
 
+  subscribeStatus(listener: RealtimeStatusListener): () => void {
+    this.statusListeners.add(listener);
+    listener(this.status);
+    return () => this.statusListeners.delete(listener);
+  }
+
   disconnect(): void {
     this.stopped = true;
     if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.socket?.close();
     this.socket = null;
+    this.setStatus('disconnected');
   }
 
   private flushQueue(): void {
@@ -92,6 +114,12 @@ export class RealtimeClient {
       const message = this.queue.shift();
       if (message) this.socket.send(JSON.stringify(message));
     }
+  }
+
+  private setStatus(status: RealtimeConnectionStatus): void {
+    if (this.status === status) return;
+    this.status = status;
+    this.statusListeners.forEach((listener) => listener(status));
   }
 
   private scheduleReconnect(): void {

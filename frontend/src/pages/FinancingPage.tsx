@@ -12,6 +12,8 @@ import type { CreditPurpose, Recommendation } from '../types/credit';
 import { formatMoney } from '../utils/format';
 
 const purposes: CreditPurpose[] = ['goods', 'equipment', 'cash_gap'];
+const APPLICATION_MIN_AMOUNT = 50_000;
+const APPLICATION_MAX_AMOUNT = 5_000_000;
 
 export function FinancingPage() {
   const navigate = useNavigate();
@@ -135,7 +137,13 @@ export function FinancingPage() {
             </select>
           </label>
           {error && <p role="alert">{error}</p>}
-          <Button view="accent" size={56} block onClick={() => void calculate()} disabled={loading || amount <= 0 || !Number.isFinite(amount)}>
+          <Button
+            view="accent"
+            size={56}
+            block
+            onClick={() => void calculate()}
+            disabled={loading || !Number.isFinite(amount) || amount < APPLICATION_MIN_AMOUNT || amount > APPLICATION_MAX_AMOUNT}
+          >
 
             {loading ? 'Рассчитываем…' : 'Рассчитать предложения'}
           </Button>
@@ -180,10 +188,10 @@ export function FinancingPage() {
                     <p className="recommendation-card__description">{item.product.description}</p>
                   </div>
                   <div className="offer-numbers">
-                    <div><small>Сумма</small><strong>{formatMoney(item.amount ?? amount)}</strong></div>
+                    <div><small>Сумма</small><strong>{formatMoney(item.amount)}</strong></div>
                     <div><small>Срок</small><strong>{item.termMonths} мес.</strong></div>
-                    <div><small>Переплата по процентам</small><strong>{formatMoney(item.interestAmount ?? 0)}</strong></div>
-                    <div><small>Ставка</small><strong>{item.product.rate}%</strong></div>
+                    <div><small>Переплата по процентам</small><strong>{formatMoney(item.interestAmount)}</strong></div>
+                    <div><small>Ставка</small><strong>{item.rate}%</strong></div>
                     <div><small>Платёж</small><strong>{formatMoney(item.monthlyPayment)}</strong></div>
                     <div><small>Покрытие</small><strong className={item.coverage >= 1.25 ? 'positive-text' : 'warning-text'}>{item.coverage.toFixed(2)}×</strong></div>
                   </div>
@@ -199,9 +207,9 @@ export function FinancingPage() {
                     size={48}
                     block
                     disabled={!item.eligible && item.group !== 'requires_action'}
-                    onClick={() => navigate(`/client/apply?product=${encodeURIComponent(item.product.id)}&purpose=${purpose}&amount=${item.amount ?? amount}&term=${item.termMonths ?? termMonths}`)}
+                    onClick={() => navigate(`/client/apply?product=${encodeURIComponent(item.product.id)}&purpose=${purpose}&amount=${item.amount}&term=${item.termMonths}`)}
                   >
-                    Выбрать продукт
+                    {item.group === 'requires_action' ? 'Отправить на проверку' : 'Выбрать продукт'}
                   </Button>
                 </article>
               ))}

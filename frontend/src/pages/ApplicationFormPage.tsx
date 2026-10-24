@@ -120,14 +120,14 @@ export function ApplicationFormPage() {
               <div className="selected-product__numbers">
                 <div><small>Сумма</small><strong>{formatMoney(amount)}</strong></div>
                 <div><small>Срок</small><strong>{termMonths} мес.</strong></div>
-                <div><small>Ставка</small><strong>{product.rate}%</strong></div>
+                <div><small>Ставка</small><strong>{recommendation.rate}%</strong></div>
                 <div><small>Платёж</small><strong>{formatMoney(recommendation.monthlyPayment)}</strong></div>
               </div>
             </div>
             {!recommendation.eligible && (
               <div className="explanation-box explanation-box--warning">
                 <strong>Потребуется решение сотрудника банка</strong>
-                <p>{recommendation.warning} Заявку можно отправить на индивидуальное рассмотрение.</p>
+                <p>{recommendation.warning} Сотрудник банка проверит ограничения и может запросить сведения либо отказать.</p>
                 {recommendation.recommendedAmount && <span>Расчётная комфортная сумма: <b>{formatMoney(recommendation.recommendedAmount)}</b></span>}
               </div>
             )}

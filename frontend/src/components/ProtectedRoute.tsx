@@ -13,7 +13,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const location = useLocation();
 
   if (!currentUser) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}${location.hash}` }} replace />;
   }
 
   if (requiredRole && currentUser.role !== requiredRole) {

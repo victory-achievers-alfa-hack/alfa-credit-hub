@@ -15,7 +15,7 @@ export function BankApplicationPage() {
   const { getCompany, applications, decideApplication } = useCredit();
   const application = applications.find((candidate) => candidate.id === id);
   const company = getCompany(application?.companyId);
-  const [decision, setDecision] = useState<BankDecisionKind>('approve');
+  const [decision, setDecision] = useState<BankDecisionKind>(() => application?.status === 'offer' ? 'reject' : 'approve');
   const [amount, setAmount] = useState(() => Math.min(application?.requestedAmount ?? 150_000, 150_000));
   const [termMonths, setTermMonths] = useState(() => application?.requestedTermMonths ?? 24);
   const [rate, setRate] = useState(() => application?.requestedRate ?? 24);
@@ -34,24 +34,37 @@ export function BankApplicationPage() {
     );
   }
 
-  const canDecide = application.status === 'review';
+  const canDecide = application.status === 'review' || application.status === 'offer';
+  const revokingOffer = application.status === 'offer';
+  const effectiveDecision: BankDecisionKind = revokingOffer ? 'reject' : decision;
+  const decisionOptions: ReadonlyArray<readonly [BankDecisionKind, string, string]> = revokingOffer
+    ? [['reject', 'Отозвать предложение', 'Завершить заявку с объяснением']]
+    : [
+        ['approve', 'Одобрить', 'Запрошенные условия'],
+        ['alternative', 'Предложить альтернативу', 'Другая сумма или срок'],
+        ['need_info', 'Запросить сведения', 'Вернуть клиенту'],
+        ['reject', 'Отказать', 'Завершить заявку'],
+      ];
 
   const handleDecision = async () => {
-    if (['need_info', 'reject'].includes(decision) && !comment.trim()) {
+    if (['alternative', 'need_info', 'reject'].includes(effectiveDecision) && !comment.trim()) {
       setError('Укажите причину решения');
       return;
     }
-    if (decision === 'alternative' && (amount <= 0 || termMonths <= 0 || rate < 0)) {
-      setError('Заполните альтернативные условия');
+    if (effectiveDecision === 'alternative' && (
+      !Number.isFinite(amount) || !Number.isFinite(termMonths) || !Number.isFinite(rate)
+      || amount <= 0 || termMonths <= 0 || termMonths > 120 || rate < 0 || rate > 100
+    )) {
+      setError('Проверьте сумму, срок до 120 месяцев и ставку от 0 до 100%');
       return;
     }
 
-    const success = await decideApplication(application.id, {
-      kind: decision,
-      ...(decision === 'alternative' ? { amount, termMonths, rate } : {}),
-      comment: comment.trim() || (decision === 'approve' ? 'Заявка соответствует правилам и одобрена на запрошенных условиях.' : 'Альтернативные условия снижают долговую нагрузку.'),
+    const result = await decideApplication(application.id, {
+      kind: effectiveDecision,
+      ...(effectiveDecision === 'alternative' ? { amount, termMonths, rate } : {}),
+      comment: comment.trim() || (effectiveDecision === 'approve' ? 'Заявка соответствует правилам и одобрена на запрошенных условиях.' : 'Альтернативные условия снижают долговую нагрузку.'),
     });
-    if (success) setError('');
+    setError(result.success ? '' : result.error ?? 'Не удалось сохранить решение');
   };
 
   return (
@@ -153,27 +166,25 @@ export function BankApplicationPage() {
           {canDecide ? (
             <section className="surface-card decision-card">
               <div className="eyebrow">Решение банка</div>
-              <Typography.Title tag="h2" view="small" weight="bold">Выберите действие</Typography.Title>
+              <Typography.Title tag="h2" view="small" weight="bold">
+                {revokingOffer ? 'Управление предложением' : 'Выберите действие'}
+              </Typography.Title>
+              {revokingOffer && <p className="decision-card__hint">Backend разрешает отозвать активное предложение до решения клиента.</p>}
               <div className="decision-options">
-                {([
-                  ['approve', 'Одобрить', 'Запрошенные условия'],
-                  ['alternative', 'Предложить альтернативу', 'Другая сумма или срок'],
-                  ['need_info', 'Запросить сведения', 'Вернуть клиенту'],
-                  ['reject', 'Отказать', 'Завершить заявку'],
-                ] as const).map(([value, label, hint]) => (
+                {decisionOptions.map(([value, label, hint]) => (
                   <button
                     type="button"
-                    className={`decision-option decision-option--${value}${decision === value ? ' decision-option--active' : ''}`}
+                    className={`decision-option decision-option--${value}${effectiveDecision === value ? ' decision-option--active' : ''}`}
                     key={value}
                     onClick={() => { setDecision(value); setError(''); }}
                   >
-                    <span>{decision === value ? '●' : '○'}</span>
+                    <span>{effectiveDecision === value ? '●' : '○'}</span>
                     <span><strong>{label}</strong><small>{hint}</small></span>
                   </button>
                 ))}
               </div>
 
-              {decision === 'alternative' && (
+              {effectiveDecision === 'alternative' && (
                 <div className="decision-fields">
                   <Input label="Предложенная сумма" labelView="outer" type="number" size={48} block value={String(amount)} rightAddons="₽" onChange={(_, payload) => setAmount(Number(payload.value))} />
                   <div className="decision-fields__row">
@@ -184,16 +195,18 @@ export function BankApplicationPage() {
               )}
 
               <Input
-                label={decision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
+                label={effectiveDecision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
                 labelView="outer"
                 size={56}
                 block
                 value={comment}
                 onChange={(_, payload) => { setComment(payload.value); setError(''); }}
                 error={error || false}
-                placeholder={decision === 'alternative' ? 'Например, снижение суммы из-за нагрузки' : 'Краткое объяснение'}
+                placeholder={effectiveDecision === 'alternative' ? 'Например, снижение суммы из-за нагрузки' : 'Краткое объяснение'}
               />
-              <Button view="accent" size={56} block onClick={handleDecision}>Зафиксировать решение</Button>
+              <Button view="accent" size={56} block onClick={() => void handleDecision()}>
+                {revokingOffer ? 'Отозвать предложение' : 'Зафиксировать решение'}
+              </Button>
               <p className="decision-card__hint">Статус изменится у клиента сразу после сохранения.</p>
             </section>
           ) : (

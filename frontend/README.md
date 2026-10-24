@@ -9,25 +9,25 @@
 - Vite
 - React Router
 - `@alfalab/core-components`
-- WebSocket (`ws`) для realtime-демо
+- аутентифицированный backend WebSocket с reconnect и polling fallback
 
 ## Запуск
 
+Сначала запустите backend на `127.0.0.1:8000`. Затем:
+
 ```bash
 npm install
-```
-
-В первом терминале запустите realtime relay:
-
-```bash
-npm run realtime
-```
-
-Во втором терминале запустите frontend:
-
-```bash
 npm run dev
 ```
+
+Vite проксирует `/api` и WebSocket на backend. Переменные для отдельного origin:
+
+```env
+VITE_API_URL=https://example.ru/api/v1
+VITE_WS_URL=wss://example.ru/api/v1/realtime
+```
+
+`npm run realtime` запускает только старый изолированный demo-relay и основному приложению не требуется.
 
 Проверки:
 
@@ -66,15 +66,15 @@ npm run realtime:test
 
 ## Текущее хранение данных
 
-До подключения backend приложение использует браузерное хранилище:
+Пользователи, компании, продукты, заявки, решения, события и уведомления загружаются из backend. Браузерное хранилище больше не является источником бизнес-состояния.
 
-- `alfa_stream_user_v2` в `sessionStorage` — активный пользователь текущей вкладки;
-- `alfa_stream_applications_v2` в `localStorage` — заявки и история переходов;
-- `alfa_stream_notifications_v1` в `localStorage` — клиентские уведомления и признак прочтения.
+- авторизация — HttpOnly-cookie;
+- восстановление сессии — `GET /api/v1/me`;
+- изменения — backend WebSocket `/api/v1/realtime`;
+- резервная синхронизация — polling активной вкладки раз в 15 секунд;
+- вход/выход синхронизируются между вкладками через `BroadcastChannel`.
 
-Изменения заявок и уведомлений синхронизируются между вкладками через `storage`, а между разными браузерами — через локальный WebSocket relay `ws://localhost:8080`.
-
-Кнопка «Сбросить демо» в банковском кабинете возвращает исходные сценарии.
+Cookie общая для вкладок одного browser profile. Для параллельной демонстрации клиента и банка используйте разные профили браузера или инкогнито.
 
 ## Что уже сделано и что нужно от команды
 
