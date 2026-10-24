@@ -2,7 +2,8 @@
 
 from decimal import Decimal
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, AwareDatetime, field_validator
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 Purpose = Literal["goods", "equipment", "cash_gap"]
 Preference = Literal["min_interest", "min_payment"]
@@ -67,6 +68,14 @@ class Reason(Contract):
     message: str
 
 
+class Check(Contract):
+    id: str
+    label: str
+    value: str
+    description: str
+    state: Literal["success", "warning", "error"]
+
+
 class Evaluation(Offer):
     productId: str
     purpose: Purpose
@@ -79,6 +88,7 @@ class Evaluation(Offer):
         "unavailable",
     ]
     reasons: list[Reason]
+    checks: list[Check]
     alternative: Offer | None
     recommendedAmount: Money | None
     scoring: Scoring

@@ -3,18 +3,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.src.api.v1.exceptions import register_exception_handlers
 from backend.src.api.v1.applications import router as applications_router
 from backend.src.api.v1.assistant import router as assistant_router
 from backend.src.api.v1.bank import router as bank_router
 from backend.src.api.v1.catalog import router as catalog_router
+from backend.src.api.v1.exceptions import register_exception_handlers
 from backend.src.api.v1.mocks import router as mocks_router
 from backend.src.api.v1.notifications import router as notifications_router
 from backend.src.api.v1.profile import router as profile_router
 from backend.src.api.v1.recommendations import router as recommendations_router
 from backend.src.api.v1.system import router as system_router
 from backend.src.database import SessionLocal, engine
-from backend.src.models import Base, Company, SCORING_POLICY_VERSION, ScoringRule
+from backend.src.models import SCORING_POLICY_VERSION, Base, Company, ScoringRule
 from backend.src.schemas.errors import ErrorResponse
 from backend.src.scoring.rules import MODEL_VERSION
 from backend.src.seed import seed_demo_data
@@ -52,7 +52,7 @@ register_exception_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://31.77.79.88"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
