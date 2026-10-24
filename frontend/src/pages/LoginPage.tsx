@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Input } from '@alfalab/core-components/input';
 import { Typography } from '@alfalab/core-components/typography';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
 import { DEMO_USERS } from '../data/mockData';
 
@@ -10,7 +10,6 @@ const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 export function LoginPage() {
   const { currentUser, login, loginAs } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('client@demo.ru');
   const [password, setPassword] = useState('123456');
   const [emailError, setEmailError] = useState('');
@@ -20,7 +19,7 @@ export function LoginPage() {
     return <Navigate to={currentUser.role === 'bank' ? '/bank' : '/client'} replace />;
   }
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     if (!EMAIL_PATTERN.test(email)) {
@@ -28,19 +27,19 @@ export function LoginPage() {
       return;
     }
 
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.success) {
       setAuthError(result.message ?? 'Не удалось войти');
       return;
     }
 
-    const user = DEMO_USERS.find((candidate) => candidate.email === email.trim().toLowerCase());
-    navigate(user?.role === 'bank' ? '/bank' : '/client');
+    // The server profile determines the destination through Navigate above.
   };
 
-  const handleQuickLogin = (userId: string, role: 'client' | 'bank') => {
-    loginAs(userId);
-    navigate(role === 'bank' ? '/bank' : '/client');
+  const handleQuickLogin = async (userId: string) => {
+    const result = await loginAs(userId);
+    if (!result.success) { setAuthError(result.message ?? 'Не удалось войти'); return; }
+
   };
 
   return (
@@ -124,7 +123,7 @@ export function LoginPage() {
                 type="button"
                 className="demo-user"
                 key={user.id}
-                onClick={() => handleQuickLogin(user.id, user.role)}
+                onClick={() => handleQuickLogin(user.id)}
               >
                 <span className={`avatar${user.role === 'bank' ? ' avatar--bank' : ''}`}>{user.avatarText}</span>
                 <span className="demo-user__copy">

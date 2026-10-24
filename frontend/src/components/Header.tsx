@@ -33,8 +33,8 @@ export function Header() {
     : [];
   const unreadCount = clientNotifications.filter((notification) => !notification.read).length;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

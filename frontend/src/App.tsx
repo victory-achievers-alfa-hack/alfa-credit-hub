@@ -45,13 +45,18 @@ function AppRoutes() {
   );
 }
 
+function CreditScope({ children }: { children: import('react').ReactNode }) {
+  const { currentUser } = useAuth();
+  return <CreditProvider key={currentUser?.id ?? 'anonymous'}>{children}</CreditProvider>;
+}
+
 export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CreditProvider>
+        <CreditScope>
           <AppRoutes />
-        </CreditProvider>
+        </CreditScope>
       </AuthProvider>
     </BrowserRouter>
   );

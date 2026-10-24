@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Checkbox } from '@alfalab/core-components/checkbox';
 import { Typography } from '@alfalab/core-components/typography';
@@ -6,8 +6,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { getCompany, getProduct, PURPOSE_LABELS } from '../data/mockData';
-import type { CreditPurpose } from '../types/credit';
+import { PURPOSE_LABELS } from '../data/mockData';
+import type { CreditPurpose, Recommendation } from '../types/credit';
 import { formatMoney } from '../utils/format';
 
 const validPurposes: CreditPurpose[] = ['goods', 'equipment', 'cash_gap'];
@@ -16,7 +16,7 @@ export function ApplicationFormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentUser } = useAuth();
-  const { createApplication, recommend } = useCredit();
+  const { createApplication, recommend, getCompany, getProduct } = useCredit();
   const [confirmed, setConfirmed] = useState(false);
   const company = getCompany(currentUser?.companyId);
   const product = getProduct(searchParams.get('product') ?? '');
@@ -25,11 +25,26 @@ export function ApplicationFormPage() {
   const amount = Number(searchParams.get('amount'));
   const termMonths = Number(searchParams.get('term'));
 
-  const recommendation = useMemo(() => {
-    if (!company || !product || !purpose || !amount || !termMonths) return undefined;
-    return recommend({ companyId: company.id, purpose, amount, termMonths })
-      .find((item) => item.product.id === product.id);
-  }, [amount, company, product, purpose, recommend, termMonths]);
+  const [recommendation, setRecommendation] = useState<Recommendation>();
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const companyId = company?.id;
+  const productId = product?.id;
+  useEffect(() => {
+    let active = true;
+    // A changed URL requires a new server calculation and renewed confirmation.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setLoading(true); setRecommendation(undefined); setConfirmed(false); setError('');
+    if (!companyId || !productId || !purpose || !amount || !termMonths) { setLoading(false); return; }
+    recommend({ companyId, purpose, amount, termMonths }).then(items => {
+      if (active) setRecommendation(items.find(item => item.product.id === productId && item.amount === amount && item.termMonths === termMonths));
+    }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Ошибка расчёта'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [companyId, productId, purpose, amount, termMonths, recommend]);
+  if (loading) return <p role="status">Проверяем условия…</p>;
+  if (error && !recommendation) return <div role="alert">{error}<Button onClick={() => navigate('/client/financing')}>К подбору</Button></div>;
 
   if (!company || !product || !purpose || !amount || !termMonths || !recommendation) {
     return (
@@ -44,8 +59,11 @@ export function ApplicationFormPage() {
     );
   }
 
-  const handleSubmit = () => {
-    const application = createApplication({
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true); setError('');
+    try {
+    const application = await createApplication({
       companyId: company.id,
       productId: product.id,
       purpose,
@@ -53,6 +71,8 @@ export function ApplicationFormPage() {
       termMonths,
     });
     navigate(`/client/applications/${application.id}`);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось отправить заявку'); }
+    finally { setSubmitting(false); }
   };
 
   return (
@@ -122,6 +142,7 @@ export function ApplicationFormPage() {
             <span><small>Запрашиваем</small><strong>{formatMoney(amount)}</strong></span>
             <span><small>Платёж</small><strong>{formatMoney(recommendation.monthlyPayment)}/мес.</strong></span>
           </div>
+          {error && <p role="alert">{error}</p>}
           <Checkbox
             size={24}
             block
@@ -129,7 +150,7 @@ export function ApplicationFormPage() {
             onChange={(_, payload) => setConfirmed(payload.checked)}
             label="Подтверждаю корректность данных и согласен на демонстрационную обработку заявки"
           />
-          <Button view="accent" size={56} block disabled={!confirmed} onClick={handleSubmit}>
+          <Button view="accent" size={56} block disabled={!confirmed || submitting || recommendation.group === 'unavailable'} onClick={handleSubmit}>
             Отправить заявку
           </Button>
           <small className="submit-card__legal">Это учебный сценарий. Реальная выдача денежных средств не выполняется.</small>

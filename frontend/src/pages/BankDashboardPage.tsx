@@ -8,7 +8,7 @@ import { MetricCard } from '../components/MetricCard';
 import { PageHeader } from '../components/PageHeader';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useCredit } from '../context/CreditContext';
-import { getCompany, PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../data/mockData';
 import type { ApplicationStatus } from '../types/credit';
 import { formatDateTime, formatMoney } from '../utils/format';
 
@@ -25,7 +25,7 @@ const bankFilterOptions = [
 
 export function BankDashboardPage() {
   const navigate = useNavigate();
-  const { applications, resetDemo } = useCredit();
+  const { getCompany, applications, resetDemo } = useCredit();
   const [filter, setFilter] = useState<BankFilter>('all');
   const [query, setQuery] = useState('');
 
@@ -36,7 +36,7 @@ export function BankDashboardPage() {
       const haystack = `${application.id} ${company?.name ?? ''} ${company?.inn ?? ''}`.toLowerCase();
       return haystack.includes(query.trim().toLowerCase());
     })
-    .sort((first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()), [applications, filter, query]);
+    .sort((first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()), [applications, filter, query, getCompany]);
 
   const reviewCount = applications.filter((application) => application.status === 'review').length;
   const actionCount = applications.filter((application) => ['need_info', 'offer', 'sign', 'ready'].includes(application.status)).length;
@@ -49,7 +49,7 @@ export function BankDashboardPage() {
         eyebrow="Рабочее место андеррайтера"
         title="Очередь заявок"
         description="Проверяйте расчёты, фиксируйте решение и управляйте кредитным процессом."
-        actions={<Button view="secondary" size={48} onClick={resetDemo}>Сбросить демо</Button>}
+        actions={<Button view="secondary" size={48} onClick={resetDemo}>Обновить данные</Button>}
       />
 
       <div className="metrics-grid metrics-grid--four">

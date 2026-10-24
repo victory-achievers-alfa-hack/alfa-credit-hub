@@ -6,13 +6,13 @@ import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { MetricCard } from '../components/MetricCard';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { CREDIT_PRODUCTS, getCompany, MOCK_NEWS, PURPOSE_LABELS } from '../data/mockData';
+import { MOCK_NEWS, PURPOSE_LABELS } from '../data/mockData';
 import { formatDateTime, formatMoney } from '../utils/format';
 
 export function ClientDashboard() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { applications } = useCredit();
+  const { getCompany, products, applications } = useCredit();
   const company = getCompany(currentUser?.companyId);
 
   if (!company) return null;
@@ -133,14 +133,14 @@ export function ClientDashboard() {
           </div>
         </div>
         <div className="product-preview-grid">
-          {CREDIT_PRODUCTS.map((product) => (
+          {products.map((product) => (
             <button
               type="button"
               className={`product-preview product-preview--${product.accent}`}
               key={product.id}
               onClick={() => navigate('/client/financing')}
             >
-              <span className="product-preview__index">0{CREDIT_PRODUCTS.indexOf(product) + 1}</span>
+              <span className="product-preview__index">0{products.indexOf(product) + 1}</span>
               <strong>{product.name}</strong>
               <p>{product.description}</p>
               <span>от {product.rate}% · до {formatMoney(product.maxAmount)}</span>

@@ -5,14 +5,14 @@ import { Typography } from '@alfalab/core-components/typography';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { useCredit } from '../context/CreditContext';
-import { getCompany, PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../data/mockData';
 import type { BankDecisionKind } from '../types/credit';
 import { formatDate, formatDateTime, formatMoney, formatPercent } from '../utils/format';
 
 export function BankApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { applications, decideApplication } = useCredit();
+  const { getCompany, applications, decideApplication } = useCredit();
   const application = applications.find((candidate) => candidate.id === id);
   const company = getCompany(application?.companyId);
   const [decision, setDecision] = useState<BankDecisionKind>('approve');
@@ -36,24 +36,22 @@ export function BankApplicationPage() {
 
   const canDecide = application.status === 'review';
 
-  const handleDecision = () => {
+  const handleDecision = async () => {
     if (['need_info', 'reject'].includes(decision) && !comment.trim()) {
       setError('Укажите причину решения');
       return;
     }
-    if (decision === 'alternative' && (amount <= 0 || termMonths <= 0 || rate <= 0)) {
+    if (decision === 'alternative' && (amount <= 0 || termMonths <= 0 || rate < 0)) {
       setError('Заполните альтернативные условия');
       return;
     }
 
-    decideApplication(application.id, {
+    const success = await decideApplication(application.id, {
       kind: decision,
-      amount,
-      termMonths,
-      rate,
+      ...(decision === 'alternative' ? { amount, termMonths, rate } : {}),
       comment: comment.trim() || (decision === 'approve' ? 'Заявка соответствует правилам и одобрена на запрошенных условиях.' : 'Альтернативные условия снижают долговую нагрузку.'),
     });
-    setError('');
+    if (success) setError('');
   };
 
   return (

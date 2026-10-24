@@ -2,11 +2,12 @@ import { Typography } from '@alfalab/core-components/typography';
 import { MetricCard } from '../components/MetricCard';
 import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../context/AutoContext';
-import { getCompany } from '../data/mockData';
+import { useCredit } from '../context/CreditContext';
 import { formatDate, formatMoney } from '../utils/format';
 
 export function BusinessPage() {
   const { currentUser } = useAuth();
+  const { getCompany } = useCredit();
   const company = getCompany(currentUser?.companyId);
 
   if (!company) return null;

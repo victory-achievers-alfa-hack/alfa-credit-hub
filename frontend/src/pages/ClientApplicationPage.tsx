@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { getCompany, PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../data/mockData';
 import type { ApplicationStatus } from '../types/credit';
 import { formatDateTime, formatMoney, formatPercent } from '../utils/format';
 
@@ -16,7 +16,7 @@ export function ClientApplicationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { applications, respondToInfoRequest, acceptOffer, signApplication, disburseApplication } = useCredit();
+  const { getCompany, applications, respondToInfoRequest, acceptOffer, signApplication, disburseApplication } = useCredit();
   const [signConfirmed, setSignConfirmed] = useState(false);
   const application = applications.find((candidate) => candidate.id === id && candidate.companyId === currentUser?.companyId);
   const company = getCompany(application?.companyId);

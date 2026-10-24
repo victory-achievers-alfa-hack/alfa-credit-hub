@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -8,6 +9,7 @@ from backend.src.auth import (
     verify_password,
 )
 from backend.src.models import Company, User
+from backend.src.scoring import score_company, InputError
 from backend.src.schemas import profile as profile_schemas
 
 
@@ -74,6 +76,17 @@ def get_user_companies(
             detail={"code": "COMPANY_NOT_FOUND", "message": "Company not found"},
         )
 
+    try:
+        scoring = score_company({
+            "monthlyRevenue": company.monthly_revenue,
+            "monthlyExpenses": company.monthly_expenses,
+            "existingPayments": company.current_monthly_debt_payment,
+            "hasOverdue": company.has_overdue,
+            "registrationDate": company.registration_date.isoformat(),
+        }, evaluated_at=datetime.now(timezone.utc))
+    except InputError as exc:
+        raise HTTPException(409, detail={"code": "SOURCE_DATA_INVALID", "message": "Уточните финансовые данные компании."}) from exc
+
     return profile_schemas.CompanyProfileResponse(
         id=company.id,
         name=company.name,
@@ -88,7 +101,7 @@ def get_user_companies(
         existing_payments=company.current_monthly_debt_payment,
         has_overdue=company.has_overdue,
         active=company.active,
-        scoring_score=company.scoring_score,
+        scoring_score=scoring["score"],
         documents=[
             profile_schemas.CompanyDocumentSchema.model_validate(document)
             for document in sorted(company.documents, key=lambda item: item.id)

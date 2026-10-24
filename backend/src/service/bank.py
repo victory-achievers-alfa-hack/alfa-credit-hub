@@ -14,6 +14,7 @@ from backend.src.service import applications as applications_service
 from backend.src.service import profile as profile_service
 from backend.src.service.application_state import ensure_application_transition
 from backend.src.service.realtime import realtime_connections
+from backend.src.scoring import assess_financing, InputError
 
 
 def get_bank_applications(
@@ -91,6 +92,24 @@ async def make_bank_decision(
             else application.term_months
         )
         rate = request.rate if request.rate is not None else application.requested_rate
+        if request.kind == BankDecisionKind.APPROVE and (
+            amount != application.amount or term_months != application.term_months
+            or rate != application.requested_rate
+        ):
+            raise HTTPException(409, detail={"code": "USE_ALTERNATIVE", "message": "Изменённые условия оформляются как альтернативное предложение."})
+        # Re-evaluate current data; a stored score is not a permanent approval.
+        product_snapshot = applications_service._product_snapshot(application.product)
+        product_snapshot["rate"] = str(rate)
+        try:
+            assessment = assess_financing(
+                applications_service._company_snapshot(application.company), product_snapshot,
+                purpose=application.purpose, amount=amount, term_months=term_months,
+                evaluated_at=datetime.now(timezone.utc),
+            )
+        except InputError as exc:
+            raise HTTPException(409, detail={"code": "SOURCE_DATA_INVALID", "message": "Для решения нужно уточнить данные или условия."}) from exc
+        if not assessment["eligible"]:
+            raise HTTPException(409, detail={"code": "OFFER_NOT_ELIGIBLE", "message": "Предложенные условия не проходят текущие проверки. " + " ".join(r["message"] for r in assessment["reasons"])})
         comment = request.comment
         title = (
             "Заявка одобрена"

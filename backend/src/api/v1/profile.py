@@ -10,6 +10,11 @@ from backend.src.schemas import profile as profile_schemas
 router = APIRouter()
 
 
+@router.post("/auth/logout", status_code=204)
+def logout_user(response: Response) -> None:
+    response.delete_cookie("access_token", path="/", secure=settings.auth_cookie_secure, httponly=True, samesite="lax")
+
+
 @router.post("/auth/login", response_model_exclude_none=True)
 def login_user(
     login_request: profile_schemas.LoginRequest,

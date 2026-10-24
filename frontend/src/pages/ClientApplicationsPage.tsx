@@ -7,7 +7,7 @@ import { PageHeader } from '../components/PageHeader';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { getCompany, PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../data/mockData';
 import { formatDateTime, formatMoney } from '../utils/format';
 
 type ListFilter = 'all' | 'active' | 'completed';
@@ -21,7 +21,7 @@ const listFilterOptions = [
 export function ClientApplicationsPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { applications } = useCredit();
+  const { getCompany, applications } = useCredit();
   const [filter, setFilter] = useState<ListFilter>('all');
   const company = getCompany(currentUser?.companyId);
 
