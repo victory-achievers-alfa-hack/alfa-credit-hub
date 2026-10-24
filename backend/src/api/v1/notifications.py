@@ -1,10 +1,8 @@
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
-
 from backend.src.dependency import CurrentUser, get_db, require_role
 from backend.src.schemas import notifications as notification_schemas
 from backend.src.service import notifications as notifications_service
-
+from fastapi import APIRouter, Depends, Query, WebSocket
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -28,9 +26,11 @@ def get_notifications(
 
 
 @router.post("/notifications/{notification_id}/read")
-def mark_notification_read(
+async def mark_notification_read(
     notification_id: str,
     user: CurrentUser = Depends(require_role("client")),
     db: Session = Depends(get_db),
 ) -> notification_schemas.NotificationResponse:
-    return notifications_service.mark_notification_read(notification_id, user.id, db)
+    return await notifications_service.mark_notification_read(
+        notification_id, user.id, db
+    )
