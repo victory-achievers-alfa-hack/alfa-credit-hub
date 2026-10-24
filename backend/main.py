@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI):
             seed_demo_data(db)
     yield
 
+
 app = FastAPI(
     lifespan=lifespan,
     responses={
@@ -45,7 +46,7 @@ app = FastAPI(
         409: {"model": ErrorResponse, "description": "State conflict"},
         422: {"model": ErrorResponse, "description": "Request validation failed"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
-    }
+    },
 )
 register_exception_handlers(app)
 

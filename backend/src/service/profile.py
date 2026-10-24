@@ -1,13 +1,13 @@
 from fastapi import HTTPException, status
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 
 from backend.src.auth import (
     ACCESS_TOKEN_TTL_SECONDS,
     create_access_token,
     verify_password,
 )
-from backend.src.models import User
+from backend.src.models import Company, User
 from backend.src.schemas import profile as profile_schemas
 
 
@@ -57,4 +57,40 @@ def _user_response(user: User) -> profile_schemas.UserMeResponse:
 def get_user_companies(
     company_id: str | None, db: Session
 ) -> profile_schemas.CompanyProfileResponse:
-    pass
+    if company_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": "Company not found"},
+        )
+
+    company = db.scalar(
+        select(Company)
+        .options(selectinload(Company.documents))
+        .where(Company.id == company_id)
+    )
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COMPANY_NOT_FOUND", "message": "Company not found"},
+        )
+
+    return profile_schemas.CompanyProfileResponse(
+        id=company.id,
+        name=company.name,
+        legal_name=company.legal_name,
+        inn=company.inn,
+        okved=company.okved,
+        registration_date=company.registration_date,
+        account=company.account,
+        representative=company.representative,
+        monthly_revenue=company.monthly_revenue,
+        monthly_expenses=company.monthly_expenses,
+        existing_payments=company.current_monthly_debt_payment,
+        has_overdue=company.has_overdue,
+        active=company.active,
+        scoring_score=company.scoring_score,
+        documents=[
+            profile_schemas.CompanyDocumentSchema.model_validate(document)
+            for document in sorted(company.documents, key=lambda item: item.id)
+        ],
+    )

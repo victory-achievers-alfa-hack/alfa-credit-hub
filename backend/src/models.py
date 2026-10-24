@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event as sqlalchemy_event,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -425,6 +426,28 @@ class Notification(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="notifications")
+
+
+class RecommendationAudit(Base):
+    __tablename__ = "recommendation_audits"
+
+    evaluation_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    actor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    company_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    record: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+@sqlalchemy_event.listens_for(RecommendationAudit, "before_update")
+def _prevent_recommendation_audit_update(mapper, connection, target) -> None:
+    raise ValueError("Recommendation audit records are immutable")
+
+
+@sqlalchemy_event.listens_for(RecommendationAudit, "before_delete")
+def _prevent_recommendation_audit_delete(mapper, connection, target) -> None:
+    raise ValueError("Recommendation audit records are immutable")
 
 
 class ScoringRule(Base):

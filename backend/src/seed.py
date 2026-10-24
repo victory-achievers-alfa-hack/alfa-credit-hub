@@ -74,7 +74,20 @@ _COMPANIES = (
         "has_overdue": False,
         "scoring_score": 75,
         "status": "active",
-        "turnover": [760000, 790000, 810000, 830000, 850000, 870000, 890000, 900000, 910000, 900000, 900000, 900000],
+        "turnover": [
+            760000,
+            790000,
+            810000,
+            830000,
+            850000,
+            870000,
+            890000,
+            900000,
+            910000,
+            900000,
+            900000,
+            900000,
+        ],
     },
     {
         "id": "cafe",
@@ -92,7 +105,20 @@ _COMPANIES = (
         "has_overdue": False,
         "scoring_score": 88,
         "status": "active",
-        "turnover": [950000, 980000, 1010000, 1040000, 1080000, 1100000, 1130000, 1150000, 1180000, 1200000, 1200000, 1200000],
+        "turnover": [
+            950000,
+            980000,
+            1010000,
+            1040000,
+            1080000,
+            1100000,
+            1130000,
+            1150000,
+            1180000,
+            1200000,
+            1200000,
+            1200000,
+        ],
     },
     {
         "id": "vector",
@@ -110,7 +136,20 @@ _COMPANIES = (
         "has_overdue": True,
         "scoring_score": 38,
         "status": "active",
-        "turnover": [420000, 440000, 450000, 470000, 480000, 490000, 510000, 500000, 510000, 500000, 500000, 500000],
+        "turnover": [
+            420000,
+            440000,
+            450000,
+            470000,
+            480000,
+            490000,
+            510000,
+            500000,
+            510000,
+            500000,
+            500000,
+            500000,
+        ],
     },
 )
 
@@ -285,8 +324,10 @@ def _money(value: Decimal | int | float) -> Decimal:
 
 def _monthly_payment(amount: Decimal, rate: Decimal, term: int) -> Decimal:
     monthly_rate = rate / Decimal("1200")
-    payment = amount / term if monthly_rate == 0 else (
-        amount * monthly_rate / (1 - (1 + monthly_rate) ** -term)
+    payment = (
+        amount / term
+        if monthly_rate == 0
+        else (amount * monthly_rate / (1 - (1 + monthly_rate) ** -term))
     )
     # The frontend demo calculates whole-ruble monthly payments with Math.round.
     return payment.quantize(Decimal("1"), rounding="ROUND_HALF_UP")
@@ -424,7 +465,11 @@ def seed_demo_data(db: Session) -> None:
                 company_id=company.id,
                 product_id=product.id,
                 created_by_user_id=users_by_email[
-                    {"city": "client@demo.ru", "cafe": "cafe@demo.ru", "vector": "vector@demo.ru"}[company.id]
+                    {
+                        "city": "client@demo.ru",
+                        "cafe": "cafe@demo.ru",
+                        "vector": "vector@demo.ru",
+                    }[company.id]
                 ].id,
                 purpose=data["purpose"],
                 amount=data["amount"],
@@ -437,9 +482,19 @@ def seed_demo_data(db: Session) -> None:
             db.add(application)
             db.flush()
 
-        if not db.query(ApplicationCheck).filter_by(application_id=application.id).first():
+        if (
+            not db.query(ApplicationCheck)
+            .filter_by(application_id=application.id)
+            .first()
+        ):
             factors = _factor_data(company, operating_flow)
-            risk = "low" if company.scoring_score >= 70 else "medium" if company.scoring_score >= 50 else "high"
+            risk = (
+                "low"
+                if company.scoring_score >= 70
+                else "medium"
+                if company.scoring_score >= 50
+                else "high"
+            )
             summary = (
                 "Профиль устойчивый. Итог зависит от покрытия платежей по выбранной сумме."
                 if risk == "low"
@@ -458,7 +513,9 @@ def seed_demo_data(db: Session) -> None:
                     coverage=coverage,
                     monthly_payment=payment,
                     max_available_amount=product.max_amount,
-                    eligible=not company.has_overdue and company.scoring_score >= 70 and coverage >= Decimal("1.25"),
+                    eligible=not company.has_overdue
+                    and company.scoring_score >= 70
+                    and coverage >= Decimal("1.25"),
                     explanation=summary,
                     input_data={
                         "monthlyRevenue": str(company.monthly_revenue),
@@ -493,7 +550,11 @@ def seed_demo_data(db: Session) -> None:
             actor = users_by_email[data["actor_email"]]
             db.add(
                 ApplicationEvent(
-                    **{key: value for key, value in data.items() if key != "actor_email"},
+                    **{
+                        key: value
+                        for key, value in data.items()
+                        if key != "actor_email"
+                    },
                     actor_id=actor.id,
                 )
             )
