@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import EmailStr, Field, field_validator
@@ -50,15 +51,24 @@ class FinancialProfileSchema(ApiSchema):
 class CompanyDocumentSchema(ApiSchema):
     id: str
     name: str
+    description: str
     status: str
+    updated_at: datetime
 
 
 class CompanyProfileResponse(ApiSchema):
     id: str = Field(..., examples=["company-city"])
     name: str = Field(..., examples=["Магазин «Город»"], max_length=127)
+    legal_name: str
     inn: str = Field(..., pattern=r"^\d{10,12}$", examples=["7704821934"])
-    industry: str
+    okved: str
+    registration_date: date
+    account: str
+    representative: str
     monthly_revenue: Decimal = Field(..., ge=0)
     monthly_expenses: Decimal = Field(..., ge=0)
-    current_monthly_debt_payment: Decimal = Field(..., ge=0)
+    existing_payments: Decimal = Field(..., ge=0)
+    has_overdue: bool
+    active: bool
+    scoring_score: int = Field(..., ge=0, le=100)
     documents: list[CompanyDocumentSchema]

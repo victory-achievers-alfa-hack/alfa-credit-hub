@@ -1,10 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import Field
 
 from .base import ApiSchema
-from .enums import ApplicationStatus, CreditGoal, UserRole
+from .enums import ApplicationStatus, CreditGoal
 
 
 class ApplicationCreateRequest(ApiSchema):
@@ -23,29 +24,51 @@ class OfferDecisionRequest(ApiSchema):
     accepted: bool = Field(..., description="Принимает ли клиент оффер")
 
 
-class ApplicationEventResponse(ApiSchema):
-    id: str
-    type: str
-    description: str
-    old_status: ApplicationStatus | None = None
-    new_status: ApplicationStatus | None = None
-    actor_id: str
-    actor_role: UserRole
-    created_at: datetime
+class ScoringFactorResponse(ApiSchema):
+    label: str
+    value: str
+    positive: bool
+    code: str | None = None
+    points: int | None = None
+    max_points: int | None = None
+
+
+class ScoringResultResponse(ApiSchema):
+    score: int = Field(..., ge=0, le=100)
+    risk_level: Literal["low", "medium", "high"]
+    summary: str
+    model_version: str | None = None
+    feature_version: str | None = None
+    calculated_at: datetime | None = None
+    event_probability: float | None = None
+    factors: list[ScoringFactorResponse]
 
 
 class ApplicationCheckResponse(ApiSchema):
-    name: str
-    status: str
-    details: str | None = None
+    id: str
+    label: str
+    value: str
+    description: str
+    state: Literal["success", "warning", "error"]
+
+
+class ApplicationEventResponse(ApiSchema):
+    id: str
+    status: ApplicationStatus
+    title: str
+    description: str
+    actor: str
+    created_at: datetime
 
 
 class ApplicationOfferResponse(ApiSchema):
+    id: str
     amount: Decimal = Field(..., ge=0)
     term_months: int = Field(..., gt=0)
     rate: Decimal = Field(..., ge=0)
     monthly_payment: Decimal = Field(..., ge=0)
-    expires_at: datetime | None = None
+    reason: str
+    created_at: datetime
 
 
 class ApplicationListItemResponse(ApiSchema):
@@ -61,18 +84,26 @@ class ApplicationListItemResponse(ApiSchema):
     updated_at: datetime
 
 
-class ApplicationDetailResponse(ApplicationListItemResponse):
-    rate: Decimal = Field(..., ge=0)
-    monthly_payment: Decimal = Field(..., ge=0)
+class ApplicationDetailResponse(ApiSchema):
+    id: str
+    company_id: str
+    product_id: str
+    product_name: str
+    purpose: CreditGoal
+    requested_amount: Decimal = Field(..., ge=0)
+    requested_term_months: int = Field(..., gt=0)
+    requested_rate: Decimal = Field(..., ge=0)
+    requested_monthly_payment: Decimal = Field(..., ge=0)
     coverage: Decimal
-    score: int = Field(..., ge=0, le=100)
-    risk: str
-    explanation: str
-    factors: list[str]
+    status: ApplicationStatus
+    scoring: ScoringResultResponse
     checks: list[ApplicationCheckResponse]
-    active_offer: ApplicationOfferResponse | None = None
+    offer: ApplicationOfferResponse | None = None
     bank_comment: str | None = None
-    history: list[ApplicationEventResponse]
+    info_request: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    events: list[ApplicationEventResponse]
 
 
 class ApplicationListResponse(ApiSchema):

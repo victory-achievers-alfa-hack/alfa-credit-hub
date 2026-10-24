@@ -51,12 +51,13 @@ class Company(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     legal_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    representative: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     inn: Mapped[str] = mapped_column(
         String(12), unique=True, nullable=False, index=True
     )
     okved: Mapped[str] = mapped_column(String(120), nullable=False)
     sector: Mapped[str] = mapped_column(String(100), nullable=False)
-    account: Mapped[str | None] = mapped_column(String(64))
+    account: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     registration_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     monthly_revenue: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
@@ -65,7 +66,12 @@ class Company(Base):
         Numeric(14, 2), nullable=False
     )
     has_overdue: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    scoring_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     turnover: Mapped[list[float]] = mapped_column(JSON, nullable=False, default=list)
+
+    @property
+    def active(self) -> bool:
+        return self.status == "active"
 
     users: Mapped[list["User"]] = relationship(back_populates="company")
     documents: Mapped[list["CompanyDocument"]] = relationship(
@@ -130,13 +136,14 @@ class CreditProduct(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    short: Mapped[str] = mapped_column(String(255), nullable=False)
-    goals: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    short_name: Mapped[str] = mapped_column(String(127), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    purposes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     min_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     max_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     terms: Mapped[list[int]] = mapped_column(JSON, nullable=False)
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
-    color: Mapped[str] = mapped_column(String(16), nullable=False, default="#e7e9ff")
+    accent: Mapped[str] = mapped_column(String(16), nullable=False, default="#e7e9ff")
     icon: Mapped[str] = mapped_column(String(32), nullable=False, default="wallet")
 
     applications: Mapped[list["Application"]] = relationship(back_populates="product")
@@ -233,10 +240,11 @@ class CompanyDocument(Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
     source: Mapped[str | None] = mapped_column(String(64))
-    uploaded_at: Mapped[datetime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )
 
