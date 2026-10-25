@@ -188,7 +188,7 @@ export function FinancingPage() {
                     <div><small>Переплата по процентам</small><strong>{formatMoney(item.interestAmount ?? 0)}</strong></div>
                     <div><small>Ставка</small><strong>{item.product.rate}%</strong></div>
                     <div><small>Платёж</small><strong>{formatMoney(item.monthlyPayment)}</strong></div>
-                    <div><small>Покрытие</small><strong className={item.coverage >= (item.requiredCoverage ?? 1.25) ? 'positive-text' : 'warning-text'}>{item.coverage.toFixed(2)}×</strong></div>
+                    <div><small>Покрытие</small><strong className={(item.coveragePasses ?? item.coverage >= (item.requiredCoverage ?? 1.25)) ? 'positive-text' : 'warning-text'}>{item.coverage.toFixed(2)}×</strong></div>
                   </div>
                   <div className={`explanation-box${item.warning ? ' explanation-box--warning' : ''}`}>
                     <strong>{item.warning ? 'На что обратить внимание' : 'Почему подходит'}</strong>

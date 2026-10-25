@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Recommendations API",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "paths": {
     "/api/v1/recommendations": {
@@ -206,6 +206,13 @@
             "title": "Reviewrequired",
             "default": false
           },
+          "coveragePasses": {
+            "type": "boolean",
+            "title": "Coveragepasses"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/FinancingConstraints"
+          },
           "actions": {
             "items": {
               "$ref": "#/components/schemas/NextAction"
@@ -312,6 +319,8 @@
           "interestAmount",
           "coverage",
           "eligible",
+          "coveragePasses",
+          "constraints",
           "actions",
           "policyPasses",
           "requiredCoverage",
@@ -369,6 +378,88 @@
           "maxPoints"
         ],
         "title": "Factor"
+      },
+      "FinancingConstraints": {
+        "properties": {
+          "productMinAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Productminamount"
+          },
+          "productMaxAmount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Productmaxamount"
+          },
+          "allowedTerms": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Allowedterms"
+          },
+          "allowedPurposes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "goods",
+                "equipment",
+                "cash_gap"
+              ]
+            },
+            "type": "array",
+            "title": "Allowedpurposes"
+          },
+          "appliedAmountLimit": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Appliedamountlimit"
+          },
+          "requiredCoverage": {
+            "type": "number",
+            "title": "Requiredcoverage"
+          },
+          "maxNewMonthlyPayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Maxnewmonthlypayment"
+          },
+          "monthlyCashFlow": {
+            "type": "number",
+            "title": "Monthlycashflow"
+          },
+          "totalMonthlyDebtPayment": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Totalmonthlydebtpayment"
+          },
+          "requiredMonthlyRevenue": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Requiredmonthlyrevenue"
+          },
+          "monthlyCoverageShortfall": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Monthlycoverageshortfall"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "productMinAmount",
+          "productMaxAmount",
+          "allowedTerms",
+          "allowedPurposes",
+          "appliedAmountLimit",
+          "requiredCoverage",
+          "maxNewMonthlyPayment",
+          "monthlyCashFlow",
+          "totalMonthlyDebtPayment",
+          "requiredMonthlyRevenue",
+          "monthlyCoverageShortfall"
+        ],
+        "title": "FinancingConstraints"
       },
       "Groups": {
         "properties": {
@@ -479,6 +570,44 @@
               }
             ],
             "title": "Documentkind"
+          },
+          "minimumAmount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimumamount"
+          },
+          "maximumAmount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximumamount"
+          },
+          "allowedTerms": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowedterms"
           }
         },
         "additionalProperties": false,
@@ -726,6 +855,74 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "actual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "allowedValues": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowedvalues"
           }
         },
         "additionalProperties": false,
@@ -800,6 +997,16 @@
       },
       "RecommendationResponse": {
         "properties": {
+          "requestSummary": {
+            "$ref": "#/components/schemas/RequestSummary"
+          },
+          "requestChecks": {
+            "items": {
+              "$ref": "#/components/schemas/RequestedProductCheck"
+            },
+            "type": "array",
+            "title": "Requestchecks"
+          },
           "evaluationId": {
             "type": "string",
             "title": "Evaluationid"
@@ -841,6 +1048,8 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "requestSummary",
+          "requestChecks",
           "evaluationId",
           "companyId",
           "rankingVersion",
@@ -851,6 +1060,102 @@
           "groups"
         ],
         "title": "RecommendationResponse"
+      },
+      "RequestSummary": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "exact_available",
+              "exact_review",
+              "alternatives_available",
+              "information_required",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "exactMatchCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Exactmatchcount"
+          },
+          "exactReviewCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Exactreviewcount"
+          },
+          "otherTermCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Othertermcount"
+          },
+          "reducedAmountCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Reducedamountcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "message",
+          "exactMatchCount",
+          "exactReviewCount",
+          "otherTermCount",
+          "reducedAmountCount"
+        ],
+        "title": "RequestSummary"
+      },
+      "RequestedProductCheck": {
+        "properties": {
+          "productId": {
+            "type": "string",
+            "title": "Productid"
+          },
+          "productName": {
+            "type": "string",
+            "title": "Productname"
+          },
+          "assessment": {
+            "type": "string",
+            "title": "Assessment"
+          },
+          "policyPasses": {
+            "type": "boolean",
+            "title": "Policypasses"
+          },
+          "reviewRequired": {
+            "type": "boolean",
+            "title": "Reviewrequired"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/FinancingConstraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "productId",
+          "productName",
+          "assessment",
+          "policyPasses",
+          "reviewRequired",
+          "reasons",
+          "constraints"
+        ],
+        "title": "RequestedProductCheck"
       },
       "Scoring": {
         "properties": {

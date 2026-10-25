@@ -341,6 +341,39 @@ def test_medium_score_bank_review_requires_reason_and_persists_audit(client: Tes
         assert decision_audit.record["result"]["reviewRequired"]
         assert decision_audit.record["result"]["policyPasses"]
         assert decision_audit.record["result"]["stress"]["coverageThreshold"] == 1.5
-        assert decision_audit.record["result"]["policyVersion"] == "financing-v1.2.0"
+        assert decision_audit.record["result"]["policyVersion"] == "financing-v1.3.0"
+    finally:
+        session_generator.close()
+
+
+@pytest.mark.parametrize("change", [{"has_overdue": True}, {"monthly_expenses": 1200000}])
+def test_bank_rechecks_changed_sources_and_preserves_submission_snapshot(client: TestClient, change: dict) -> None:
+    from backend.src.models import Company, RecommendationAudit
+    from sqlalchemy import select
+    client_token = login(client, "cafe@demo.ru")
+    created = client.post("/api/v1/applications", headers={"Authorization": f"Bearer {client_token}"},
+        json={"productId": "working-capital", "purpose": "goods", "amount": 100000, "termMonths": 24})
+    assert created.status_code == 200, created.text
+    submitted = created.json()
+    session_generator = app.dependency_overrides[get_db]()
+    db = next(session_generator)
+    try:
+        company = db.get(Company, "cafe")
+        for field, value in change.items():
+            setattr(company, field, value)
+        db.commit()
+        bank_token = login(client, "bank@demo.ru")
+        headers = {"Authorization": f"Bearer {bank_token}"}
+        url = f"/api/v1/bank/applications/{submitted['id']}"
+        for payload in ({"kind": "approve"}, {"kind": "alternative", "amount": 100000, "termMonths": 36, "rate": 24, "comment": "Изменение срока не должно обходить текущие ограничения."}):
+            denied = client.post(url + "/decision", headers=headers, json=payload)
+            assert denied.status_code == 409, denied.text
+            assert denied.json()["code"] == "OFFER_NOT_ELIGIBLE"
+        after = client.get(url, headers=headers).json()["application"]
+        assert after["status"] == "review"
+        assert after["scoring"] == submitted["scoring"]
+        assert after["stress"] == submitted["stress"]
+        assert after["events"] == submitted["events"]
+        assert not db.scalars(select(RecommendationAudit)).all()
     finally:
         session_generator.close()

@@ -67,6 +67,11 @@ class Offer(Contract):
 class Reason(Contract):
     code: str
     message: str
+    field: str | None = None
+    actual: float | str | None = None
+    minimum: float | None = None
+    maximum: float | None = None
+    allowedValues: list[int | str] | None = None
 
 
 class Check(Contract):
@@ -84,9 +89,28 @@ class NextAction(Contract):
     amount: Money | None = None
     termMonths: int | None = None
     documentKind: str | None = None
+    minimumAmount: Money | None = None
+    maximumAmount: Money | None = None
+    allowedTerms: list[int] | None = None
+
+
+class FinancingConstraints(Contract):
+    productMinAmount: Money
+    productMaxAmount: Money
+    allowedTerms: list[int]
+    allowedPurposes: list[Purpose]
+    appliedAmountLimit: Money
+    requiredCoverage: float
+    maxNewMonthlyPayment: Money
+    monthlyCashFlow: float
+    totalMonthlyDebtPayment: Money
+    requiredMonthlyRevenue: Money
+    monthlyCoverageShortfall: Money
 
 
 class Evaluation(Offer):
+    coveragePasses: bool
+    constraints: FinancingConstraints
     actions: list[NextAction]
     policyPasses: bool
     requiredCoverage: float
@@ -176,7 +200,28 @@ class Groups(Contract):
     unavailable: list[RankedOffer]
 
 
+class RequestedProductCheck(Contract):
+    productId: str
+    productName: str
+    assessment: str
+    policyPasses: bool
+    reviewRequired: bool
+    reasons: list[Reason]
+    constraints: FinancingConstraints
+
+
+class RequestSummary(Contract):
+    status: Literal["exact_available", "exact_review", "alternatives_available", "information_required", "unavailable"]
+    message: str
+    exactMatchCount: Annotated[int, Field(ge=0)]
+    exactReviewCount: Annotated[int, Field(ge=0)]
+    otherTermCount: Annotated[int, Field(ge=0)]
+    reducedAmountCount: Annotated[int, Field(ge=0)]
+
+
 class RecommendationResponse(Contract):
+    requestSummary: RequestSummary
+    requestChecks: list[RequestedProductCheck]
     evaluationId: str
     companyId: str
     rankingVersion: str

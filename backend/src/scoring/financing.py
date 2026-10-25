@@ -8,9 +8,9 @@ from datetime import datetime
 from typing import Any, Mapping
 
 from .rules import InputError, _money, score_company
-from .actions import next_actions
+from .actions import next_actions, format_rubles
 
-POLICY_VERSION = "financing-v1.2.0"
+POLICY_VERSION = "financing-v1.3.0"
 MIN_COVERAGE = Decimal("1.25")
 MIN_SCORE = 70
 REVIEW_MIN_SCORE = 50
@@ -183,8 +183,8 @@ def assess_financing(
     covered = flow >= threshold * denominator
     reasons = []
 
-    def reason(code: str, message: str):
-        reasons.append({"code": code, "message": message})
+    def reason(code: str, message: str, **details):
+        reasons.append({"code": code, "message": message, **details})
 
     if not company["active"]:
         reason(
@@ -206,16 +206,17 @@ def assess_financing(
     elif review_required:
         reason("SCORE_REVIEW", "Балл 50–69: решение сотрудника с обоснованием, покрытие от 1,5× и сумма не более 50% месячной выручки.")
         if principal > amount_limit:
-            reason("REVIEW_AMOUNT_LIMIT", "Сумма превышает лимит рассмотрения: 50% месячной выручки.")
+            reason("REVIEW_AMOUNT_LIMIT", f"Для этого профиля лимит суммы — {format_rubles(amount_limit)}. Запрошено {format_rubles(principal)}.", field="amount", actual=float(principal), maximum=float(amount_limit))
     compatible = purpose in product["purposes"] and term in product["terms"]
     if purpose not in product["purposes"]:
-        reason("PURPOSE_MISMATCH", "Продукт не соответствует цели финансирования.")
+        reason("PURPOSE_MISMATCH", "Продукт не соответствует цели финансирования.", field="purpose", actual=purpose, allowedValues=product["purposes"])
     if term not in product["terms"]:
-        reason("TERM_UNSUPPORTED", "Выбранный срок не предусмотрен продуктом.")
+        reason("TERM_UNSUPPORTED", f"Срок {term} мес. не предусмотрен продуктом. Доступные сроки: {', '.join(map(str, sorted(set(product["terms"]))))} мес.", field="termMonths", actual=term, allowedValues=sorted(set(product["terms"])))
     if not minimum <= principal <= maximum:
-        reason("AMOUNT_OUT_OF_RANGE", "Запрошенная сумма вне диапазона продукта.")
+        bound = f"Минимальная сумма продукта — {format_rubles(minimum)}" if principal < minimum else f"Максимальная сумма продукта — {format_rubles(maximum)}"
+        reason("AMOUNT_OUT_OF_RANGE", f"{bound}. Запрошено {format_rubles(principal)}.", field="amount", actual=float(principal), minimum=float(minimum), maximum=float(maximum))
     if not covered:
-        reason("INSUFFICIENT_COVERAGE", f"Покрытие всех платежей ниже {threshold}×.")
+        reason("INSUFFICIENT_COVERAGE", f"Покрытие всех платежей ниже требуемого порога {threshold}×. Отображаемый коэффициент может быть округлён.", field="coverage", actual=float(coverage), minimum=float(threshold))
 
     alternative = None
     if not company["active"] or company["hasOverdue"] or scoring["score"] < REVIEW_MIN_SCORE:
@@ -297,7 +298,18 @@ def assess_financing(
         "reviewRequired": review_required,
         "policyPasses": assessment in ("eligible", "manual_review") and alternative is None,
         "requiredCoverage": float(threshold),
+        "coveragePasses": covered,
         "amountLimit": float(amount_limit),
+        "constraints": {
+            "productMinAmount": float(minimum), "productMaxAmount": float(maximum),
+            "allowedTerms": sorted(set(product["terms"])),
+            "allowedPurposes": sorted(set(product["purposes"])),
+            "appliedAmountLimit": float(amount_limit), "requiredCoverage": float(threshold),
+            "maxNewMonthlyPayment": float(max(Decimal(0), flow / threshold - existing).quantize(CENT, rounding=ROUND_DOWN)),
+            "monthlyCashFlow": float(flow), "totalMonthlyDebtPayment": float(denominator),
+            "requiredMonthlyRevenue": float(_money(company, "monthlyExpenses") + threshold * denominator),
+            "monthlyCoverageShortfall": float(max(Decimal(0), threshold * denominator - flow)),
+        },
         "assessment": assessment,
         "reasons": reasons,
         "checks": checks,

@@ -82,6 +82,7 @@ export interface NextAction {
 }
 
 export interface Recommendation {
+  coveragePasses?: boolean;
   stress?: StressSummary;
   actions?: NextAction[];
   highlights?: string[];

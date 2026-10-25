@@ -7,6 +7,7 @@ from typing import Any, Mapping
 from .financing import assess_financing, _validate_product, _term, _documents_ready
 from .rules import InputError, _money, score_company
 from .stress import stress_summary
+from .request_summary import summarize_request
 
 RANKING_VERSION = "ranking-v1.2.0"
 
@@ -60,7 +61,16 @@ def recommend_financing(
     }
     metric = "interestAmount" if preference == "min_interest" else "monthlyPayment"
     secondary = "monthlyPayment" if preference == "min_interest" else "interestAmount"
+    request_checks = []
     for product in products:
+        original = assess_financing(company, product, purpose=purpose, amount=principal,
+                                    term_months=term_months, evaluated_at=evaluated_at)
+        request_checks.append({
+            "productId": product["id"], "productName": product["name"],
+            "assessment": original["assessment"], "policyPasses": original["policyPasses"],
+            "reviewRequired": original["reviewRequired"], "reasons": original["reasons"],
+            "constraints": original["constraints"],
+        })
         if purpose not in product["purposes"]:
             # Retain an explanation without generating irrelevant term variants.
             terms = [term_months]
@@ -155,6 +165,8 @@ def recommend_financing(
             )
     return {
         "rankingVersion": RANKING_VERSION,
+        "requestSummary": summarize_request(request_checks, groups, principal, term_months),
+        "requestChecks": sorted(request_checks, key=lambda check: check["productId"]),
         "preference": preference,
         "requestedAmount": float(principal),
         "requestedTermMonths": term_months,
