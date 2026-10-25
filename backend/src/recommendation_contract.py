@@ -182,6 +182,8 @@ class RankedOffer(Contract):
     evaluation: Evaluation
     selectedEvaluation: Evaluation
     highlights: list[str]
+    comparisonAmount: Money | None
+    comparisonCount: Annotated[int, Field(ge=0)]
     offer: Offer
     termChanged: bool
     amountShortfall: Money

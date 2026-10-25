@@ -9,7 +9,7 @@ from .rules import InputError, _money, score_company
 from .stress import stress_summary
 from .request_summary import summarize_request
 
-RANKING_VERSION = "ranking-v1.2.0"
+RANKING_VERSION = "ranking-v1.3.0"
 
 
 def recommend_financing(
@@ -101,6 +101,8 @@ def recommend_financing(
                 "evaluation": result,
                 "selectedEvaluation": assess_financing(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at) if result["alternative"] else result,
                 "highlights": [],
+                "comparisonAmount": None,
+                "comparisonCount": 0,
                 "stress": stress_summary(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at),
                 "offer": {
                     k: offer[k]
@@ -136,13 +138,26 @@ def recommend_financing(
                     x["product"]["id"],
                 )
             )
-        comparable = [x for x in items if x["selectedEvaluation"]["policyPasses"]]
-        if comparable:
-            largest_amount = max(x["offer"]["amount"] for x in comparable)
-            comparable = [x for x in comparable if x["offer"]["amount"] == largest_amount]
-        for field, label, best in (("interestAmount", "Меньше переплата при этой сумме", min), ("monthlyPayment", "Меньше платёж при этой сумме", min), ("coverage", "Больше запас по нагрузке при этой сумме", max)):
-            if comparable:
-                value = best(x["offer"][field] for x in comparable)
+        # Compare only passing offers with the same principal in the same group.
+        cohorts = {}
+        for item in items:
+            if item["selectedEvaluation"]["policyPasses"]:
+                cohorts.setdefault(item["offer"]["amount"], []).append(item)
+        for comparison_amount, comparable in cohorts.items():
+            for item in comparable:
+                item["comparisonAmount"] = comparison_amount
+                item["comparisonCount"] = len(comparable)
+            if len(comparable) < 2:
+                continue
+            for field, label, best in (
+                ("interestAmount", "Меньше переплата при этой сумме", min),
+                ("monthlyPayment", "Меньше платёж при этой сумме", min),
+                ("coverage", "Больше запас по нагрузке при этой сумме", max),
+            ):
+                values = [item["offer"][field] for item in comparable]
+                if min(values) == max(values):
+                    continue
+                value = best(values)
                 for item in comparable:
                     if item["offer"][field] == value:
                         item["highlights"].append(label)

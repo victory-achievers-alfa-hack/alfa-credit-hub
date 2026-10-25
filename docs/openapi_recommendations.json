@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Recommendations API",
-    "version": "1.4.0"
+    "version": "1.5.0"
   },
   "paths": {
     "/api/v1/recommendations": {
@@ -796,6 +796,23 @@
             "type": "array",
             "title": "Highlights"
           },
+          "comparisonAmount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparisonamount"
+          },
+          "comparisonCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Comparisoncount"
+          },
           "offer": {
             "$ref": "#/components/schemas/Offer"
           },
@@ -837,6 +854,8 @@
           "evaluation",
           "selectedEvaluation",
           "highlights",
+          "comparisonAmount",
+          "comparisonCount",
           "offer",
           "termChanged",
           "amountShortfall",
