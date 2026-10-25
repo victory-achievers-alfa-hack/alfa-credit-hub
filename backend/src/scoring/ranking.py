@@ -7,7 +7,7 @@ from typing import Any, Mapping
 from .financing import assess_financing, _validate_product, _term, _documents_ready
 from .rules import InputError, _money, score_company
 
-RANKING_VERSION = "ranking-v1.0.0"
+RANKING_VERSION = "ranking-v1.1.0"
 
 
 def recommend_financing(
@@ -79,12 +79,12 @@ def recommend_financing(
             elif result["eligible"]:
                 group = "requested" if term == term_months else "other_terms"
             elif result["alternative"]:
-                group = "reduced_amount"
+                group = "requires_action" if result["reviewRequired"] else "reduced_amount"
             elif result["assessment"] in ("need_info", "manual_review", "blocked"):
                 group = "requires_action"
             else:
                 group = "unavailable"
-            offer = result["alternative"] if group == "reduced_amount" else result
+            offer = result["alternative"] or result
             item = {
                 "product": deepcopy(dict(product)),
                 "evaluation": result,
@@ -100,6 +100,7 @@ def recommend_financing(
                         "interestAmount",
                         "coverage",
                         "eligible",
+                        "reviewRequired",
                     )
                 },
                 "termChanged": term != term_months,

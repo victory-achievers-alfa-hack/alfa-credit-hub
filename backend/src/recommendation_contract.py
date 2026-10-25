@@ -61,6 +61,7 @@ class Offer(Contract):
     interestAmount: Money
     coverage: Annotated[float, Field(allow_inf_nan=False)]
     eligible: bool
+    reviewRequired: bool = False
 
 
 class Reason(Contract):
@@ -77,6 +78,9 @@ class Check(Contract):
 
 
 class Evaluation(Offer):
+    policyPasses: bool
+    requiredCoverage: float
+    amountLimit: Money
     productId: str
     purpose: Purpose
     assessment: Literal[

@@ -3,7 +3,7 @@ import { useAuth } from './AutoContext';
 import { api, allItems, realtimeUrl } from '../services/api';
 import type { BankDecisionInput, ClientNotification, CompanyProfile, CreateApplicationInput, CreditApplication, CreditProduct, Recommendation, RecommendationInput } from '../types/credit';
 
-type Ranked = { product: CreditProduct; offer: { amount: number; termMonths: number; monthlyPayment: number; coverage: number; eligible: boolean; interestAmount: number }; evaluation: { reasons: { code: string; message: string }[] }; group: string; rankingReason: string };
+type Ranked = { product: CreditProduct; offer: { amount: number; termMonths: number; monthlyPayment: number; coverage: number; eligible: boolean; reviewRequired: boolean; interestAmount: number }; evaluation: { reasons: { code: string; message: string }[] }; group: string; rankingReason: string };
 interface CreditContextValue {
   applications: CreditApplication[]; notifications: ClientNotification[]; products: CreditProduct[];
   getCompany: (id?: string) => CompanyProfile | undefined;

@@ -201,7 +201,7 @@ export function FinancingPage() {
                     disabled={!item.eligible && item.group !== 'requires_action'}
                     onClick={() => navigate(`/client/apply?product=${encodeURIComponent(item.product.id)}&purpose=${purpose}&amount=${item.amount ?? amount}&term=${item.termMonths ?? termMonths}`)}
                   >
-                    Выбрать продукт
+                    {item.reviewRequired ? 'На рассмотрение банка' : 'Выбрать продукт'}
                   </Button>
                 </article>
               ))}

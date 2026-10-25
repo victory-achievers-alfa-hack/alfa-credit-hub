@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Recommendations API",
-    "version": "1.0.0"
+    "version": "0.1.0"
   },
   "paths": {
     "/api/v1/recommendations": {
@@ -86,6 +86,45 @@
   },
   "components": {
     "schemas": {
+      "Check": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "success",
+              "warning",
+              "error"
+            ],
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "value",
+          "description",
+          "state"
+        ],
+        "title": "Check"
+      },
       "ErrorDetail": {
         "properties": {
           "code": {
@@ -162,6 +201,24 @@
             "type": "boolean",
             "title": "Eligible"
           },
+          "reviewRequired": {
+            "type": "boolean",
+            "title": "Reviewrequired",
+            "default": false
+          },
+          "policyPasses": {
+            "type": "boolean",
+            "title": "Policypasses"
+          },
+          "requiredCoverage": {
+            "type": "number",
+            "title": "Requiredcoverage"
+          },
+          "amountLimit": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amountlimit"
+          },
           "productId": {
             "type": "string",
             "title": "Productid"
@@ -193,6 +250,13 @@
             },
             "type": "array",
             "title": "Reasons"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/Check"
+            },
+            "type": "array",
+            "title": "Checks"
           },
           "alternative": {
             "anyOf": [
@@ -241,10 +305,14 @@
           "interestAmount",
           "coverage",
           "eligible",
+          "policyPasses",
+          "requiredCoverage",
+          "amountLimit",
           "productId",
           "purpose",
           "assessment",
           "reasons",
+          "checks",
           "alternative",
           "recommendedAmount",
           "scoring",
@@ -399,6 +467,11 @@
           "eligible": {
             "type": "boolean",
             "title": "Eligible"
+          },
+          "reviewRequired": {
+            "type": "boolean",
+            "title": "Reviewrequired",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -613,8 +686,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$"
+                "type": "string"
               }
             ],
             "title": "Amount"

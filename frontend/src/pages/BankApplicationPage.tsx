@@ -46,6 +46,9 @@ export function BankApplicationPage() {
       return;
     }
 
+    if (company.scoringScore >= 50 && company.scoringScore < 70 && ['approve', 'alternative'].includes(decision) && comment.trim().length < 20) {
+      setError('Для балла 50–69 укажите обоснование решения: не менее 20 символов'); return;
+    }
     const success = await decideApplication(application.id, {
       kind: decision,
       ...(decision === 'alternative' ? { amount, termMonths, rate } : {}),
@@ -101,6 +104,7 @@ export function BankApplicationPage() {
                   {application.scoring.riskLevel === 'low' ? 'Допустимый риск' : application.scoring.riskLevel === 'medium' ? 'Нужно внимание' : 'Высокий риск'}
                 </Typography.Title>
                 <p>{application.scoring.summary}</p>
+                {company.scoringScore >= 50 && company.scoringScore < 70 && <p>Текущий профиль требует рассмотрения: покрытие от 1,5×, сумма до 50% месячной выручки и обязательное обоснование сотрудника. Ограничения проверяет сервер.</p>}
               </div>
             </div>
             <div className="scoring-factors">

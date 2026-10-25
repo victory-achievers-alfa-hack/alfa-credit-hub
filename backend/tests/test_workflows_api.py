@@ -302,3 +302,40 @@ def test_recommendation_audit_to_new_application_disbursement(client: TestClient
             headers=headers, json={"accepted": True} if endpoint == "accept" else None)
         assert response.status_code == 200, response.text
         assert response.json()["status"] == expected
+
+
+def test_medium_score_bank_review_requires_reason_and_persists_audit(client: TestClient) -> None:
+    from backend.src.models import Company, RecommendationAudit
+    from datetime import date
+    session_generator = app.dependency_overrides[get_db]()
+    db = next(session_generator)
+    company = db.get(Company, "city")
+    company.registration_date = date.today().replace(day=1)
+    company.monthly_revenue = 10000000
+    company.monthly_expenses = 9500000
+    company.current_monthly_debt_payment = 300000
+    db.commit()
+    try:
+        token = login(client, "client@demo.ru")
+        created = client.post("/api/v1/applications", headers={"Authorization": f"Bearer {token}"},
+            json={"productId": "working-capital", "purpose": "goods", "amount": 100000, "termMonths": 24})
+        assert created.status_code == 200, created.text
+        application_id = created.json()["id"]
+        assert 50 <= created.json()["scoring"]["score"] < 70
+        bank_token = login(client, "bank@demo.ru")
+        headers = {"Authorization": f"Bearer {bank_token}"}
+        url = f"/api/v1/bank/applications/{application_id}/decision"
+        denied = client.post(url, headers=headers, json={"kind": "approve", "comment": " "})
+        assert denied.status_code == 409, denied.text
+        assert denied.json()["code"] == "REVIEW_JUSTIFICATION_REQUIRED"
+        approved = client.post(url, headers=headers, json={"kind": "approve",
+            "comment": "Проверены документы и устойчивость покрытия для ограниченной суммы."})
+        assert approved.status_code == 200, approved.text
+        from sqlalchemy import select
+        records = db.scalars(select(RecommendationAudit)).all()
+        decision_audit = next(r for r in records if r.record.get("applicationId") == application_id)
+        assert decision_audit.record["result"]["reviewRequired"]
+        assert decision_audit.record["result"]["policyPasses"]
+        assert decision_audit.record["result"]["policyVersion"] == "financing-v1.1.0"
+    finally:
+        session_generator.close()

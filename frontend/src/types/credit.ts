@@ -78,6 +78,7 @@ export interface CreditProduct {
 }
 
 export interface Recommendation {
+  reviewRequired?: boolean;
   amount?: number;
   termMonths?: number;
   interestAmount?: number;
