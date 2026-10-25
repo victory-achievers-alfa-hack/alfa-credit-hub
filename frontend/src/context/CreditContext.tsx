@@ -13,6 +13,8 @@ import type {
   RecommendationAssessment,
   RecommendationGroup,
   RecommendationInput,
+  NextAction,
+  StressSummary,
 } from '../types/credit';
 
 const RECOMMENDATION_GROUPS: RecommendationGroup[] = [
@@ -31,6 +33,7 @@ type RecommendationOfferDto = {
   interestAmount: number;
   coverage: number;
   eligible: boolean;
+  reviewRequired: boolean;
 };
 
 type RankedRecommendationDto = {
@@ -41,6 +44,15 @@ type RankedRecommendationDto = {
     reasons: Array<{ code: string; message: string }>;
     recommendedAmount: number | null;
   };
+  selectedEvaluation: {
+    assessment: RecommendationAssessment;
+    reasons: Array<{ code: string; message: string }>;
+    actions: NextAction[];
+    requiredCoverage: number;
+    coveragePasses: boolean;
+  };
+  stress: StressSummary;
+  highlights: string[];
   group: RecommendationGroup;
   rankingReason: string;
 };
@@ -265,14 +277,19 @@ export function CreditProvider({ children }: { children: ReactNode }) {
       body: input,
     });
     return RECOMMENDATION_GROUPS.flatMap((group) => response.groups[group].map((item) => {
-      const explanation = item.evaluation.reasons.map((reason) => reason.message).join(' ');
+      const explanation = item.selectedEvaluation.reasons.map((reason) => reason.message).join(' ');
       return {
         product: item.product,
         ...item.offer,
         evaluationId: response.evaluationId,
         rankingVersion: response.rankingVersion,
         group: item.group,
-        assessment: item.evaluation.assessment,
+        assessment: item.selectedEvaluation.assessment,
+        actions: item.selectedEvaluation.actions,
+        requiredCoverage: item.selectedEvaluation.requiredCoverage,
+        coveragePasses: item.selectedEvaluation.coveragePasses,
+        stress: item.stress,
+        highlights: item.highlights,
         reason: explanation,
         rankingReason: item.rankingReason,
         warning: item.offer.eligible ? undefined : explanation,

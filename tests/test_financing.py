@@ -119,7 +119,8 @@ class FinancingTests(unittest.TestCase):
                               existingPayments=450000, registrationDate="2026-10-01")
         result = assess(company, amount=100000)
         self.assertLess(result["scoring"]["score"], 70)
-        self.assertEqual(result["assessment"], "manual_review")
+        self.assertEqual(result["assessment"], "unavailable")
+        self.assertFalse(result["policyPasses"])
 
     def test_exact_threshold_not_rounded_display(self):
         product = PRODUCT | dict(rate=0, minAmount=100, terms=[1])

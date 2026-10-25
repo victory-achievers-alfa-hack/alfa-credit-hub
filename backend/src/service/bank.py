@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from backend.src.dependency import CurrentUser
-from backend.src.models import Application, Company, Notification, OfferDecision, User
+from backend.src.models import Application, Company, Notification, OfferDecision, User, RecommendationAudit
 from backend.src.schemas import applications as application_schemas
 from backend.src.schemas import bank as bank_schemas
 from backend.src.schemas.enums import ApplicationStatus, BankDecisionKind
@@ -15,6 +15,7 @@ from backend.src.service import profile as profile_service
 from backend.src.service.application_state import ensure_application_transition
 from backend.src.service.realtime import realtime_connections
 from backend.src.scoring import assess_financing, InputError
+from backend.src.scoring.stress import stress_summary
 
 
 def get_bank_applications(
@@ -108,9 +109,12 @@ async def make_bank_decision(
             )
         except InputError as exc:
             raise HTTPException(409, detail={"code": "SOURCE_DATA_INVALID", "message": "Для решения нужно уточнить данные или условия."}) from exc
-        if not assessment["eligible"]:
+        if not assessment["policyPasses"]:
             raise HTTPException(409, detail={"code": "OFFER_NOT_ELIGIBLE", "message": "Предложенные условия не проходят текущие проверки. " + " ".join(r["message"] for r in assessment["reasons"])})
-        comment = request.comment
+        if assessment["reviewRequired"] and len((request.comment or "").strip()) < 20:
+            raise HTTPException(409, detail={"code": "REVIEW_JUSTIFICATION_REQUIRED", "message": "Для балла 50–69 укажите обоснование решения: не менее 20 символов."})
+        assessment["stress"] = stress_summary(applications_service._company_snapshot(application.company), product_snapshot, purpose=application.purpose, amount=amount, term_months=term_months, evaluated_at=datetime.fromisoformat(assessment["calculatedAt"].replace("Z", "+00:00")))
+        comment = request.comment.strip() if request.comment else None
         title = (
             "Заявка одобрена"
             if request.kind == BankDecisionKind.APPROVE
@@ -153,6 +157,14 @@ async def make_bank_decision(
         comment=comment,
         created_at=now,
     )
+    if request.kind in (BankDecisionKind.APPROVE, BankDecisionKind.ALTERNATIVE):
+        db.add(RecommendationAudit(
+            evaluation_id=decision.id, actor_id=user.id, company_id=application.company_id,
+            record={"schemaVersion": "bank-decision-audit-v1", "applicationId": application.id,
+                "decisionId": decision.id, "kind": decision_kind, "comment": comment,
+                "company": applications_service._company_snapshot(application.company),
+                "product": product_snapshot, "result": assessment},
+        ))
     application.decisions.append(decision)
     application.bank_comment = comment
     applications_service._transition_event(

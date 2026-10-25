@@ -3,15 +3,19 @@
 No database mutations, automatic approvals, external services or PD estimates.
 """
 
-from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP, localcontext
+from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP, ROUND_DOWN, localcontext
 from datetime import datetime
 from typing import Any, Mapping
 
 from .rules import InputError, _money, score_company
+from .actions import next_actions, format_rubles
 
-POLICY_VERSION = "financing-v1.0.0"
+POLICY_VERSION = "financing-v1.3.0"
 MIN_COVERAGE = Decimal("1.25")
 MIN_SCORE = 70
+REVIEW_MIN_SCORE = 50
+REVIEW_MIN_COVERAGE = Decimal("1.50")
+REVIEW_REVENUE_SHARE = Decimal("0.50")
 AMOUNT_STEP = Decimal("10000")
 REQUIRED_DOCUMENTS = frozenset({"registry", "statement", "reporting", "bki"})
 CENT = Decimal("0.01")
@@ -173,11 +177,14 @@ def assess_financing(
     denominator = existing + payment  # Positive principal implies positive payment.
     coverage = flow / denominator
     # Compare exact Decimal operands, never the rounded display ratio.
-    covered = flow >= MIN_COVERAGE * denominator
+    review_required = REVIEW_MIN_SCORE <= scoring["score"] < MIN_SCORE
+    threshold = REVIEW_MIN_COVERAGE if review_required else MIN_COVERAGE
+    amount_limit = min(maximum, (_money(company, "monthlyRevenue") * REVIEW_REVENUE_SHARE).quantize(CENT, rounding=ROUND_DOWN)) if review_required else maximum
+    covered = flow >= threshold * denominator
     reasons = []
 
-    def reason(code: str, message: str):
-        reasons.append({"code": code, "message": message})
+    def reason(code: str, message: str, **details):
+        reasons.append({"code": code, "message": message, **details})
 
     if not company["active"]:
         reason(
@@ -194,45 +201,49 @@ def assess_financing(
             "DOCUMENTS_REQUIRED",
             "Нужны готовые сведения реестра, БКИ, выписка и финансовая отчётность.",
         )
-    if scoring["score"] < MIN_SCORE:
-        reason("SCORE_REVIEW", "Балл ниже 70: требуется ручное рассмотрение профиля.")
+    if scoring["score"] < REVIEW_MIN_SCORE:
+        reason("SCORE_TOO_LOW", "Балл ниже 50: кредитное предложение недоступно по текущей политике.")
+    elif review_required:
+        reason("SCORE_REVIEW", "Балл 50–69: решение сотрудника с обоснованием, покрытие от 1,5× и сумма не более 50% месячной выручки.")
+        if principal > amount_limit:
+            reason("REVIEW_AMOUNT_LIMIT", f"Для этого профиля лимит суммы — {format_rubles(amount_limit)}. Запрошено {format_rubles(principal)}.", field="amount", actual=float(principal), maximum=float(amount_limit))
     compatible = purpose in product["purposes"] and term in product["terms"]
     if purpose not in product["purposes"]:
-        reason("PURPOSE_MISMATCH", "Продукт не соответствует цели финансирования.")
+        reason("PURPOSE_MISMATCH", "Продукт не соответствует цели финансирования.", field="purpose", actual=purpose, allowedValues=product["purposes"])
     if term not in product["terms"]:
-        reason("TERM_UNSUPPORTED", "Выбранный срок не предусмотрен продуктом.")
+        reason("TERM_UNSUPPORTED", f"Срок {term} мес. не предусмотрен продуктом. Доступные сроки: {', '.join(map(str, sorted(set(product["terms"]))))} мес.", field="termMonths", actual=term, allowedValues=sorted(set(product["terms"])))
     if not minimum <= principal <= maximum:
-        reason("AMOUNT_OUT_OF_RANGE", "Запрошенная сумма вне диапазона продукта.")
+        bound = f"Минимальная сумма продукта — {format_rubles(minimum)}" if principal < minimum else f"Максимальная сумма продукта — {format_rubles(maximum)}"
+        reason("AMOUNT_OUT_OF_RANGE", f"{bound}. Запрошено {format_rubles(principal)}.", field="amount", actual=float(principal), minimum=float(minimum), maximum=float(maximum))
     if not covered:
-        reason("INSUFFICIENT_COVERAGE", "Покрытие всех платежей ниже 1,25×.")
+        reason("INSUFFICIENT_COVERAGE", f"Покрытие всех платежей ниже требуемого порога {threshold}×. Отображаемый коэффициент может быть округлён.", field="coverage", actual=float(coverage), minimum=float(threshold))
 
     alternative = None
-    if not company["active"] or company["hasOverdue"]:
+    if not company["active"] or company["hasOverdue"] or scoring["score"] < REVIEW_MIN_SCORE:
         assessment = "blocked"
     elif not docs_ready:
         assessment = "need_info"
     elif not compatible or principal < minimum:
         assessment = "unavailable"
-    elif scoring["score"] < MIN_SCORE:
-        assessment = "manual_review"
-    elif principal <= maximum and covered:
-        assessment = "eligible"
+    elif principal <= amount_limit and covered:
+        assessment = "manual_review" if review_required else "eligible"
     else:
-        budget = flow / MIN_COVERAGE - existing
+        budget = flow / threshold - existing
         candidate = _affordable_amount(
-            budget, min(principal, maximum), minimum, rate, term
+            budget, min(principal, amount_limit), minimum, rate, term
         )
         if candidate is not None and candidate < principal:
             alt_quote = loan_quote(candidate, rate, term)
             alt_payment = Decimal(str(alt_quote["monthlyPayment"]))
-            if flow < MIN_COVERAGE * (existing + alt_payment):
+            if flow < threshold * (existing + alt_payment):
                 raise ArithmeticError("alternative violates coverage policy")
             alternative = {
                 **alt_quote,
                 "coverage": float(flow / (existing + alt_payment)),
-                "eligible": True,
+                "eligible": not review_required,
+                "reviewRequired": review_required,
             }
-            assessment = "alternative"
+            assessment = "manual_review" if review_required else "alternative"
             reason(
                 "LOWER_AMOUNT_AVAILABLE",
                 "Доступна меньшая сумма на том же сроке; требуется согласие клиента.",
@@ -274,16 +285,31 @@ def assess_financing(
             "id": "coverage",
             "label": "Покрытие платежей",
             "value": f"{coverage:.2f}×",
-            "description": "Порог автоматического предварительного прохождения — 1,25×",
+            "description": f"Требуемое покрытие для текущего профиля — {threshold}×",
             "state": "success" if covered else "warning",
         },
     ]
-    return {
+    result = {
         "productId": product["id"],
         "purpose": purpose,
         **quote,
         "coverage": float(coverage),
         "eligible": assessment == "eligible",
+        "reviewRequired": review_required,
+        "policyPasses": assessment in ("eligible", "manual_review") and alternative is None,
+        "requiredCoverage": float(threshold),
+        "coveragePasses": covered,
+        "amountLimit": float(amount_limit),
+        "constraints": {
+            "productMinAmount": float(minimum), "productMaxAmount": float(maximum),
+            "allowedTerms": sorted(set(product["terms"])),
+            "allowedPurposes": sorted(set(product["purposes"])),
+            "appliedAmountLimit": float(amount_limit), "requiredCoverage": float(threshold),
+            "maxNewMonthlyPayment": float(max(Decimal(0), flow / threshold - existing).quantize(CENT, rounding=ROUND_DOWN)),
+            "monthlyCashFlow": float(flow), "totalMonthlyDebtPayment": float(denominator),
+            "requiredMonthlyRevenue": float(_money(company, "monthlyExpenses") + threshold * denominator),
+            "monthlyCoverageShortfall": float(max(Decimal(0), threshold * denominator - flow)),
+        },
         "assessment": assessment,
         "reasons": reasons,
         "checks": checks,
@@ -293,3 +319,6 @@ def assess_financing(
         "policyVersion": POLICY_VERSION,
         "calculatedAt": scoring["calculatedAt"],
     }
+
+    result["actions"] = next_actions(company, result)
+    return result

@@ -6,8 +6,10 @@ from typing import Any, Mapping
 
 from .financing import assess_financing, _validate_product, _term, _documents_ready
 from .rules import InputError, _money, score_company
+from .stress import stress_summary
+from .request_summary import summarize_request
 
-RANKING_VERSION = "ranking-v1.0.0"
+RANKING_VERSION = "ranking-v1.3.0"
 
 
 def recommend_financing(
@@ -59,7 +61,16 @@ def recommend_financing(
     }
     metric = "interestAmount" if preference == "min_interest" else "monthlyPayment"
     secondary = "monthlyPayment" if preference == "min_interest" else "interestAmount"
+    request_checks = []
     for product in products:
+        original = assess_financing(company, product, purpose=purpose, amount=principal,
+                                    term_months=term_months, evaluated_at=evaluated_at)
+        request_checks.append({
+            "productId": product["id"], "productName": product["name"],
+            "assessment": original["assessment"], "policyPasses": original["policyPasses"],
+            "reviewRequired": original["reviewRequired"], "reasons": original["reasons"],
+            "constraints": original["constraints"],
+        })
         if purpose not in product["purposes"]:
             # Retain an explanation without generating irrelevant term variants.
             terms = [term_months]
@@ -79,15 +90,20 @@ def recommend_financing(
             elif result["eligible"]:
                 group = "requested" if term == term_months else "other_terms"
             elif result["alternative"]:
-                group = "reduced_amount"
+                group = "requires_action" if result["reviewRequired"] else "reduced_amount"
             elif result["assessment"] in ("need_info", "manual_review", "blocked"):
                 group = "requires_action"
             else:
                 group = "unavailable"
-            offer = result["alternative"] if group == "reduced_amount" else result
+            offer = result["alternative"] or result
             item = {
                 "product": deepcopy(dict(product)),
                 "evaluation": result,
+                "selectedEvaluation": assess_financing(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at) if result["alternative"] else result,
+                "highlights": [],
+                "comparisonAmount": None,
+                "comparisonCount": 0,
+                "stress": stress_summary(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at),
                 "offer": {
                     k: offer[k]
                     for k in (
@@ -100,6 +116,7 @@ def recommend_financing(
                         "interestAmount",
                         "coverage",
                         "eligible",
+                        "reviewRequired",
                     )
                 },
                 "termChanged": term != term_months,
@@ -109,7 +126,7 @@ def recommend_financing(
             groups[group].append(item)
     for group, items in groups.items():
         if group in ("requires_action", "unavailable"):
-            items.sort(key=lambda x: (x["product"]["id"], x["offer"]["termMonths"]))
+            items.sort(key=lambda x: (not x["selectedEvaluation"]["policyPasses"], -x["offer"]["amount"], x["offer"][metric], x["offer"][secondary], x["product"]["id"], x["offer"]["termMonths"]))
         else:
             items.sort(
                 key=lambda x: (
@@ -121,6 +138,29 @@ def recommend_financing(
                     x["product"]["id"],
                 )
             )
+        # Compare only passing offers with the same principal in the same group.
+        cohorts = {}
+        for item in items:
+            if item["selectedEvaluation"]["policyPasses"]:
+                cohorts.setdefault(item["offer"]["amount"], []).append(item)
+        for comparison_amount, comparable in cohorts.items():
+            for item in comparable:
+                item["comparisonAmount"] = comparison_amount
+                item["comparisonCount"] = len(comparable)
+            if len(comparable) < 2:
+                continue
+            for field, label, best in (
+                ("interestAmount", "Меньше переплата при этой сумме", min),
+                ("monthlyPayment", "Меньше платёж при этой сумме", min),
+                ("coverage", "Больше запас по нагрузке при этой сумме", max),
+            ):
+                values = [item["offer"][field] for item in comparable]
+                if min(values) == max(values):
+                    continue
+                value = best(values)
+                for item in comparable:
+                    if item["offer"][field] == value:
+                        item["highlights"].append(label)
         for rank, item in enumerate(items, 1):
             item["rankInGroup"] = rank
             item["rankingReason"] = (
@@ -140,6 +180,8 @@ def recommend_financing(
             )
     return {
         "rankingVersion": RANKING_VERSION,
+        "requestSummary": summarize_request(request_checks, groups, principal, term_months),
+        "requestChecks": sorted(request_checks, key=lambda check: check["productId"]),
         "preference": preference,
         "requestedAmount": float(principal),
         "requestedTermMonths": term_months,

@@ -61,11 +61,17 @@ class Offer(Contract):
     interestAmount: Money
     coverage: Annotated[float, Field(allow_inf_nan=False)]
     eligible: bool
+    reviewRequired: bool = False
 
 
 class Reason(Contract):
     code: str
     message: str
+    field: str | None = None
+    actual: float | str | None = None
+    minimum: float | None = None
+    maximum: float | None = None
+    allowedValues: list[int | str] | None = None
 
 
 class Check(Contract):
@@ -76,7 +82,39 @@ class Check(Contract):
     state: Literal["success", "warning", "error"]
 
 
+class NextAction(Contract):
+    code: str
+    title: str
+    message: str
+    amount: Money | None = None
+    termMonths: int | None = None
+    documentKind: str | None = None
+    minimumAmount: Money | None = None
+    maximumAmount: Money | None = None
+    allowedTerms: list[int] | None = None
+
+
+class FinancingConstraints(Contract):
+    productMinAmount: Money
+    productMaxAmount: Money
+    allowedTerms: list[int]
+    allowedPurposes: list[Purpose]
+    appliedAmountLimit: Money
+    requiredCoverage: float
+    maxNewMonthlyPayment: Money
+    monthlyCashFlow: float
+    totalMonthlyDebtPayment: Money
+    requiredMonthlyRevenue: Money
+    monthlyCoverageShortfall: Money
+
+
 class Evaluation(Offer):
+    coveragePasses: bool
+    constraints: FinancingConstraints
+    actions: list[NextAction]
+    policyPasses: bool
+    requiredCoverage: float
+    amountLimit: Money
     productId: str
     purpose: Purpose
     assessment: Literal[
@@ -109,9 +147,54 @@ class Product(Contract):
     accent: str | None = None
 
 
+class StressScenario(Contract):
+    monthlyCashFlow: float | None = None
+    operatingDeficit: Money | None = None
+    debtServiceShortfall: Money | None = None
+    coverageExplanation: str | None = None
+    revenueDeclinePercent: int
+    monthlyRevenue: Money
+    coverage: float
+    coveragePasses: bool
+    score: int
+    policyPasses: bool
+    requiredCoverage: float
+    reviewRequired: bool
+    assessment: str
+
+
+class StressSummary(Contract):
+    baselineMonthlyRevenue: Money | None = None
+    monthlyExpenses: Money | None = None
+    existingMonthlyPayments: Money | None = None
+    newMonthlyPayment: Money | None = None
+    coverageDefinition: str | None = None
+    headroomStatus: Literal["below_threshold", "at_threshold", "negligible", "positive"] | None = None
+    headroomMessage: str | None = None
+    stressVersion: str
+    calculatedAt: AwareDatetime
+    assumptions: list[str]
+    coverageThreshold: float
+    requiredMonthlyRevenue: Money
+    revenueHeadroom: float
+    maxRevenueDeclinePercent: float | None
+    coverageStatus: Literal["passes", "below_threshold"]
+    thresholdExplanation: str
+    amount: Money
+    termMonths: int
+    rate: Money
+    policyVersion: str
+    scenarios: list[StressScenario]
+
+
 class RankedOffer(Contract):
+    stress: StressSummary
     product: Product
     evaluation: Evaluation
+    selectedEvaluation: Evaluation
+    highlights: list[str]
+    comparisonAmount: Money | None
+    comparisonCount: Annotated[int, Field(ge=0)]
     offer: Offer
     termChanged: bool
     amountShortfall: Money
@@ -130,7 +213,28 @@ class Groups(Contract):
     unavailable: list[RankedOffer]
 
 
+class RequestedProductCheck(Contract):
+    productId: str
+    productName: str
+    assessment: str
+    policyPasses: bool
+    reviewRequired: bool
+    reasons: list[Reason]
+    constraints: FinancingConstraints
+
+
+class RequestSummary(Contract):
+    status: Literal["exact_available", "exact_review", "alternatives_available", "information_required", "unavailable"]
+    message: str
+    exactMatchCount: Annotated[int, Field(ge=0)]
+    exactReviewCount: Annotated[int, Field(ge=0)]
+    otherTermCount: Annotated[int, Field(ge=0)]
+    reducedAmountCount: Annotated[int, Field(ge=0)]
+
+
 class RecommendationResponse(Contract):
+    requestSummary: RequestSummary
+    requestChecks: list[RequestedProductCheck]
     evaluationId: str
     companyId: str
     rankingVersion: str

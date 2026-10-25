@@ -153,6 +153,8 @@ npm run build
 
 ## Контракты и ограничения
 
-Единственный актуальный технический документ — [`docs/CONTRACTS.md`](./docs/CONTRACTS.md). Runtime-схемы DTO доступны в `/openapi.json`; при расхождении они имеют приоритет.
+Актуальный технический контракт — [`docs/CONTRACTS.md`](./docs/CONTRACTS.md). Runtime-схемы DTO доступны в `/openapi.json`; при расхождении они имеют приоритет.
 
 Перед production остаются PostgreSQL и миграции, production secrets/CORS, защита demo endpoint’ов, гарантированная realtime-доставка между несколькими процессами, идемпотентность и доработка части бизнес-правил. Полный список зафиксирован в контракте.
+
+Задачи по представлению расчётных результатов для frontend перечислены в [docs/frontend_followup.md](./docs/frontend_followup.md).

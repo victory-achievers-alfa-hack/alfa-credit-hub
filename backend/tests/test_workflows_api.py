@@ -292,13 +292,88 @@ def test_recommendation_audit_to_new_application_disbursement(client: TestClient
     assert created.status_code == 200, created.text
     application = created.json()
     assert application["scoring"]["modelVersion"] == "rules-v1.0.0"
+    assert application["stress"]["amount"] == application["requestedAmount"]
+    assert not any(action["code"] == "SUBMIT_APPLICATION" for action in application["actions"])
+    assert [r["revenueDeclinePercent"] for r in application["stress"]["scenarios"]] == [0, 10, 20, 30]
     application_id = application["id"]
     bank_token = login(client, "bank@demo.ru")
     approved = client.post(f"/api/v1/bank/applications/{application_id}/decision",
         headers={"Authorization": f"Bearer {bank_token}"}, json={"kind": "approve"})
     assert approved.status_code == 200, approved.text
+    assert approved.json()["actions"] == []
     for endpoint, expected in (("accept", "sign"), ("sign", "ready"), ("disburse", "disbursed")):
         response = client.post(f"/api/v1/applications/{application_id}/{endpoint}",
             headers=headers, json={"accepted": True} if endpoint == "accept" else None)
         assert response.status_code == 200, response.text
         assert response.json()["status"] == expected
+
+
+def test_medium_score_bank_review_requires_reason_and_persists_audit(client: TestClient) -> None:
+    from backend.src.models import Company, RecommendationAudit
+    from datetime import date
+    session_generator = app.dependency_overrides[get_db]()
+    db = next(session_generator)
+    company = db.get(Company, "city")
+    company.registration_date = date.today().replace(day=1)
+    company.monthly_revenue = 10000000
+    company.monthly_expenses = 9500000
+    company.current_monthly_debt_payment = 300000
+    db.commit()
+    try:
+        token = login(client, "client@demo.ru")
+        created = client.post("/api/v1/applications", headers={"Authorization": f"Bearer {token}"},
+            json={"productId": "working-capital", "purpose": "goods", "amount": 100000, "termMonths": 24})
+        assert created.status_code == 200, created.text
+        application_id = created.json()["id"]
+        assert 50 <= created.json()["scoring"]["score"] < 70
+        bank_token = login(client, "bank@demo.ru")
+        headers = {"Authorization": f"Bearer {bank_token}"}
+        url = f"/api/v1/bank/applications/{application_id}/decision"
+        denied = client.post(url, headers=headers, json={"kind": "approve", "comment": " "})
+        assert denied.status_code == 409, denied.text
+        assert denied.json()["code"] == "REVIEW_JUSTIFICATION_REQUIRED"
+        approved = client.post(url, headers=headers, json={"kind": "approve",
+            "comment": "Проверены документы и устойчивость покрытия для ограниченной суммы."})
+        assert approved.status_code == 200, approved.text
+        from sqlalchemy import select
+        records = db.scalars(select(RecommendationAudit)).all()
+        decision_audit = next(r for r in records if r.record.get("applicationId") == application_id)
+        assert decision_audit.record["result"]["reviewRequired"]
+        assert decision_audit.record["result"]["policyPasses"]
+        assert decision_audit.record["result"]["stress"]["coverageThreshold"] == 1.5
+        assert decision_audit.record["result"]["policyVersion"] == "financing-v1.3.0"
+    finally:
+        session_generator.close()
+
+
+@pytest.mark.parametrize("change", [{"has_overdue": True}, {"monthly_expenses": 1200000}])
+def test_bank_rechecks_changed_sources_and_preserves_submission_snapshot(client: TestClient, change: dict) -> None:
+    from backend.src.models import Company, RecommendationAudit
+    from sqlalchemy import select
+    client_token = login(client, "cafe@demo.ru")
+    created = client.post("/api/v1/applications", headers={"Authorization": f"Bearer {client_token}"},
+        json={"productId": "working-capital", "purpose": "goods", "amount": 100000, "termMonths": 24})
+    assert created.status_code == 200, created.text
+    submitted = created.json()
+    session_generator = app.dependency_overrides[get_db]()
+    db = next(session_generator)
+    try:
+        company = db.get(Company, "cafe")
+        for field, value in change.items():
+            setattr(company, field, value)
+        db.commit()
+        bank_token = login(client, "bank@demo.ru")
+        headers = {"Authorization": f"Bearer {bank_token}"}
+        url = f"/api/v1/bank/applications/{submitted['id']}"
+        for payload in ({"kind": "approve"}, {"kind": "alternative", "amount": 100000, "termMonths": 36, "rate": 24, "comment": "Изменение срока не должно обходить текущие ограничения."}):
+            denied = client.post(url + "/decision", headers=headers, json=payload)
+            assert denied.status_code == 409, denied.text
+            assert denied.json()["code"] == "OFFER_NOT_ELIGIBLE"
+        after = client.get(url, headers=headers).json()["application"]
+        assert after["status"] == "review"
+        assert after["scoring"] == submitted["scoring"]
+        assert after["stress"] == submitted["stress"]
+        assert after["events"] == submitted["events"]
+        assert not db.scalars(select(RecommendationAudit)).all()
+    finally:
+        session_generator.close()

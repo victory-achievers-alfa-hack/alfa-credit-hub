@@ -20,6 +20,7 @@ from backend.src.schemas import applications as application_schemas
 from backend.src.schemas.enums import ApplicationStatus
 from backend.src.scoring.financing import POLICY_VERSION, loan_quote, assess_financing
 from backend.src.scoring.rules import InputError
+from backend.src.scoring.stress import stress_summary
 from backend.src.service.application_state import ensure_application_transition
 
 
@@ -140,6 +141,9 @@ def set_application(
             "amount": str(request.amount),
             "termMonths": request.term_months,
             "assessment": assessment["assessment"],
+            "actions": assessment["actions"],
+            "stress": stress_summary(company_snapshot, product_snapshot, purpose=request.purpose.value, amount=request.amount, term_months=request.term_months, evaluated_at=now),
+            "requiredCoverage": assessment["requiredCoverage"],
             "scoring": assessment["scoring"],
             "calculatedAt": scoring["calculatedAt"],
         },
@@ -426,6 +430,9 @@ def _application_response(
         for event in application.events
     ]
     return application_schemas.ApplicationDetailResponse(
+        actions=[action for action in assessment.input_data.get("actions", []) if action["code"] != "SUBMIT_APPLICATION"] if application.status in ("review", "need_info") else [],
+        stress=assessment.input_data.get("stress"),
+        required_coverage=assessment.input_data.get("requiredCoverage", 1.25),
         id=application.id,
         company_id=application.company_id,
         product_id=application.product_id,

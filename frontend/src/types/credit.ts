@@ -91,7 +91,25 @@ export type RecommendationAssessment =
   | 'blocked'
   | 'unavailable';
 
+export interface NextAction {
+  code: string;
+  title: string;
+  message: string;
+  amount?: number | null;
+  termMonths?: number | null;
+  documentKind?: string | null;
+  minimumAmount?: number | null;
+  maximumAmount?: number | null;
+  allowedTerms?: number[] | null;
+}
+
 export interface Recommendation {
+  coveragePasses?: boolean;
+  stress?: StressSummary;
+  actions?: NextAction[];
+  highlights?: string[];
+  requiredCoverage?: number;
+  reviewRequired?: boolean;
   evaluationId?: string;
   rankingVersion?: string;
   amount: number;
@@ -156,6 +174,9 @@ export interface ApplicationEvent {
 }
 
 export interface CreditApplication {
+  stress?: StressSummary | null;
+  actions?: NextAction[];
+  requiredCoverage?: number;
   id: string;
   companyId: string;
   productId: string;
@@ -197,4 +218,18 @@ export interface BankDecisionInput {
   termMonths?: number;
   rate?: number;
   comment: string;
+}
+
+
+export interface StressSummary {
+  coverageDefinition?: string | null; headroomMessage?: string | null;
+  headroomStatus?: 'below_threshold' | 'at_threshold' | 'negligible' | 'positive' | null;
+  stressVersion: string; calculatedAt: string; policyVersion: string;
+  amount: number; termMonths: number; rate: number;
+  assumptions: string[]; coverageThreshold: number; requiredMonthlyRevenue: number;
+  revenueHeadroom: number; maxRevenueDeclinePercent: number | null;
+  coverageStatus: 'passes' | 'below_threshold'; thresholdExplanation: string;
+  scenarios: { coverageExplanation?: string | null; operatingDeficit?: number | null; monthlyCashFlow?: number | null; debtServiceShortfall?: number | null; revenueDeclinePercent: number; monthlyRevenue: number; coverage: number;
+    coveragePasses: boolean; score: number; policyPasses: boolean; requiredCoverage: number;
+    reviewRequired: boolean; assessment: string }[];
 }

@@ -1,3 +1,5 @@
+import { StressPanel } from '../components/StressPanel';
+import { NextActions } from '../components/NextActions';
 import { useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Input } from '@alfalab/core-components/input';
@@ -59,6 +61,11 @@ export function BankApplicationPage() {
       return;
     }
 
+    if (company.scoringScore >= 50 && company.scoringScore < 70
+      && ['approve', 'alternative'].includes(effectiveDecision) && comment.trim().length < 20) {
+      setError('Для балла 50–69 укажите обоснование решения: не менее 20 символов');
+      return;
+    }
     const result = await decideApplication(application.id, {
       kind: effectiveDecision,
       ...(effectiveDecision === 'alternative' ? { amount, termMonths, rate } : {}),
@@ -99,7 +106,7 @@ export function BankApplicationPage() {
               <div><small>Срок</small><strong>{application.requestedTermMonths} мес.</strong></div>
               <div><small>Ставка</small><strong>{formatPercent(application.requestedRate)}</strong></div>
               <div><small>Новый платёж</small><strong>{formatMoney(application.requestedMonthlyPayment)}</strong></div>
-              <div><small>Покрытие</small><strong className={application.coverage >= 1.25 ? 'positive-text' : 'warning-text'}>{application.coverage.toFixed(2)}×</strong></div>
+              <div><small>Покрытие</small><strong className={application.coverage >= (application.requiredCoverage ?? 1.25) ? 'positive-text' : 'warning-text'}>{application.coverage.toFixed(2)}×</strong></div>
             </div>
           </section>
 
@@ -114,13 +121,16 @@ export function BankApplicationPage() {
                   {application.scoring.riskLevel === 'low' ? 'Допустимый риск' : application.scoring.riskLevel === 'medium' ? 'Нужно внимание' : 'Высокий риск'}
                 </Typography.Title>
                 <p>{application.scoring.summary}</p>
+                <NextActions actions={application.actions} />
+                <StressPanel stress={application.stress} snapshot />
+                {company.scoringScore >= 50 && company.scoringScore < 70 && <p>Текущий профиль требует рассмотрения: покрытие от 1,5×, сумма до 50% месячной выручки и обязательное обоснование сотрудника. Ограничения проверяет сервер.</p>}
               </div>
             </div>
             <div className="scoring-factors">
               {application.scoring.factors.map((factor) => (
                 <div key={factor.label}>
                   <span className={factor.positive ? 'factor-icon factor-icon--positive' : 'factor-icon factor-icon--negative'}>{factor.positive ? '↗' : '↘'}</span>
-                  <span><small>{factor.label}</small><strong>{factor.value}</strong></span>
+                  <span><small>{factor.label}</small><strong>{factor.value}</strong>{factor.points !== undefined && <small>Баллы: {factor.points} из {factor.maxPoints}</small>}</span>
                 </div>
               ))}
             </div>
@@ -195,7 +205,7 @@ export function BankApplicationPage() {
               )}
 
               <Input
-                label={effectiveDecision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
+                label={company.scoringScore >= 50 && company.scoringScore < 70 && ['approve', 'alternative'].includes(effectiveDecision) ? 'Обоснование решения (обязательно, от 20 символов)' : effectiveDecision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
                 labelView="outer"
                 size={56}
                 block
