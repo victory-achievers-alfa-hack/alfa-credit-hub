@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../constants';
 import type { ApplicationStatus } from '../types/credit';
 import { formatDateTime, formatMoney, formatPercent } from '../utils/format';
 

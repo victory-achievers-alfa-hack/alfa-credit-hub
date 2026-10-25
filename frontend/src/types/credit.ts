@@ -16,7 +16,6 @@ export type CheckState = 'success' | 'warning' | 'error';
 export interface UserProfile {
   id: string;
   email: string;
-  password?: string;
   role: UserRole;
   name: string;
   companyId?: string | null;

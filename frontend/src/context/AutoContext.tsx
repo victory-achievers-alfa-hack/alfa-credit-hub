@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../services/api';
-import { DEMO_USERS } from '../data/mockData';
+import { DEMO_USERS } from '../constants';
 import type { UserProfile } from '../types/credit';
 
 interface LoginResult { success: boolean; message?: string }

@@ -5,7 +5,7 @@ import { Typography } from '@alfalab/core-components/typography';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { useCredit } from '../context/CreditContext';
-import { PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../constants';
 import type { BankDecisionKind } from '../types/credit';
 import { formatDate, formatDateTime, formatMoney, formatPercent } from '../utils/format';
 

@@ -1,2 +1,0 @@
-# Install in addition to the project's backend dependencies.
-httpx==0.28.1

@@ -6,7 +6,7 @@ import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { MetricCard } from '../components/MetricCard';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { MOCK_NEWS, PURPOSE_LABELS } from '../data/mockData';
+import { NEWS_ITEMS, PURPOSE_LABELS } from '../constants';
 import { formatDateTime, formatMoney } from '../utils/format';
 
 export function ClientDashboard() {
@@ -157,7 +157,7 @@ export function ClientDashboard() {
           </div>
         </div>
         <div className="news-grid">
-          {MOCK_NEWS.map((item) => (
+          {NEWS_ITEMS.map((item) => (
             <article className="news-card" key={item.id}>
               <span>{item.tag}</span>
               <strong>{item.title}</strong>

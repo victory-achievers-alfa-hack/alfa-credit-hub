@@ -1,4 +1,4 @@
-import { STATUS_LABELS } from '../data/mockData';
+import { STATUS_LABELS } from '../constants';
 import type { ApplicationStatus } from '../types/credit';
 
 interface ApplicationStatusBadgeProps {

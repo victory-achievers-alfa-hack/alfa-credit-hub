@@ -8,7 +8,7 @@ import { MetricCard } from '../components/MetricCard';
 import { PageHeader } from '../components/PageHeader';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useCredit } from '../context/CreditContext';
-import { PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../constants';
 import type { ApplicationStatus } from '../types/credit';
 import { formatDateTime, formatMoney } from '../utils/format';
 

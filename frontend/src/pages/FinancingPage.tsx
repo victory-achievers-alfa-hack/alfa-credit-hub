@@ -7,7 +7,7 @@ import { PageHeader } from '../components/PageHeader';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../constants';
 import type { CreditPurpose, Recommendation } from '../types/credit';
 import { formatMoney } from '../utils/format';
 

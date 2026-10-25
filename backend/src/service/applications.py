@@ -14,7 +14,6 @@ from backend.src.models import (
     Company,
     CompanyDocument,
     CreditProduct,
-    OfferDecision,
     User,
 )
 from backend.src.schemas import applications as application_schemas

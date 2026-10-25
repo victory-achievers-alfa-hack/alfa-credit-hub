@@ -1,6 +1,6 @@
 import type { ClientNotification, CreditApplication } from '../../types/credit';
 
-export type RealtimeEvent =
+export type RealtimeServerEvent =
   | {
       type: 'application.updated';
       payload: { application: CreditApplication };
@@ -14,12 +14,7 @@ export type RealtimeEvent =
       payload: { notificationId: string };
     };
 
-export type RealtimeServerEvent = RealtimeEvent | {
-  type: 'connection.ready';
-  payload: { clientId: string };
-};
-
-export type RealtimeEnvelope<T extends RealtimeServerEvent = RealtimeServerEvent> = T & {
+export type RealtimeEnvelope = RealtimeServerEvent & {
   id: string;
   sentAt: string;
 };

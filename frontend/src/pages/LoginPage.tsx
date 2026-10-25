@@ -4,7 +4,7 @@ import { Input } from '@alfalab/core-components/input';
 import { Typography } from '@alfalab/core-components/typography';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
-import { DEMO_USERS } from '../data/mockData';
+import { DEMO_USERS } from '../constants';
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
