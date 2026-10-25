@@ -148,6 +148,10 @@ class Product(Contract):
 
 
 class StressScenario(Contract):
+    monthlyCashFlow: float | None = None
+    operatingDeficit: Money | None = None
+    debtServiceShortfall: Money | None = None
+    coverageExplanation: str | None = None
     revenueDeclinePercent: int
     monthlyRevenue: Money
     coverage: float
@@ -160,6 +164,13 @@ class StressScenario(Contract):
 
 
 class StressSummary(Contract):
+    baselineMonthlyRevenue: Money | None = None
+    monthlyExpenses: Money | None = None
+    existingMonthlyPayments: Money | None = None
+    newMonthlyPayment: Money | None = None
+    coverageDefinition: str | None = None
+    headroomStatus: Literal["below_threshold", "at_threshold", "negligible", "positive"] | None = None
+    headroomMessage: str | None = None
     stressVersion: str
     calculatedAt: AwareDatetime
     assumptions: list[str]

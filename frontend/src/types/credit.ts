@@ -78,7 +78,7 @@ export interface CreditProduct {
 }
 
 export interface NextAction {
-  code: string; title: string; message: string; amount?: number | null; termMonths?: number | null; documentKind?: string | null;
+  code: string; title: string; message: string; amount?: number | null; termMonths?: number | null; documentKind?: string | null; minimumAmount?: number | null; maximumAmount?: number | null; allowedTerms?: number[] | null;
 }
 
 export interface Recommendation {
@@ -196,12 +196,14 @@ export interface BankDecisionInput {
 
 
 export interface StressSummary {
+  coverageDefinition?: string | null; headroomMessage?: string | null;
+  headroomStatus?: 'below_threshold' | 'at_threshold' | 'negligible' | 'positive' | null;
   stressVersion: string; calculatedAt: string; policyVersion: string;
   amount: number; termMonths: number; rate: number;
   assumptions: string[]; coverageThreshold: number; requiredMonthlyRevenue: number;
   revenueHeadroom: number; maxRevenueDeclinePercent: number | null;
   coverageStatus: 'passes' | 'below_threshold'; thresholdExplanation: string;
-  scenarios: { revenueDeclinePercent: number; monthlyRevenue: number; coverage: number;
+  scenarios: { coverageExplanation?: string | null; operatingDeficit?: number | null; monthlyCashFlow?: number | null; debtServiceShortfall?: number | null; revenueDeclinePercent: number; monthlyRevenue: number; coverage: number;
     coveragePasses: boolean; score: number; policyPasses: boolean; requiredCoverage: number;
     reviewRequired: boolean; assessment: string }[];
 }

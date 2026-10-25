@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Recommendations API",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "paths": {
     "/api/v1/recommendations": {
@@ -1238,6 +1238,52 @@
       },
       "StressScenario": {
         "properties": {
+          "monthlyCashFlow": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthlycashflow"
+          },
+          "operatingDeficit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operatingdeficit"
+          },
+          "debtServiceShortfall": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debtserviceshortfall"
+          },
+          "coverageExplanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverageexplanation"
+          },
           "revenueDeclinePercent": {
             "type": "integer",
             "title": "Revenuedeclinepercent"
@@ -1293,6 +1339,93 @@
       },
       "StressSummary": {
         "properties": {
+          "baselineMonthlyRevenue": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baselinemonthlyrevenue"
+          },
+          "monthlyExpenses": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthlyexpenses"
+          },
+          "existingMonthlyPayments": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Existingmonthlypayments"
+          },
+          "newMonthlyPayment": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newmonthlypayment"
+          },
+          "coverageDefinition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragedefinition"
+          },
+          "headroomStatus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "below_threshold",
+                  "at_threshold",
+                  "negligible",
+                  "positive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headroomstatus"
+          },
+          "headroomMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headroommessage"
+          },
           "stressVersion": {
             "type": "string",
             "title": "Stressversion"

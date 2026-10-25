@@ -1,13 +1,14 @@
 """Revenue sensitivity scenarios, not forecasts or default probabilities."""
 
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from typing import Any, Mapping
 
 from .financing import assess_financing
 from .rules import _money
+from .actions import format_rubles
 
-STRESS_VERSION = "stress-v1.1.0"
+STRESS_VERSION = "stress-v1.2.0"
 
 
 def stress_financing(
@@ -39,6 +40,20 @@ def stress_financing(
     threshold = Decimal(str(baseline["requiredCoverage"]))
     required = expenses + threshold * (existing + payment)
     headroom = revenue - required
+    decline_percent = headroom / revenue * 100 if revenue > 0 and headroom >= 0 else None
+    if headroom < 0:
+        headroom_status = "below_threshold"
+        headroom_message = "Исходное покрытие уже ниже требуемого порога."
+    elif headroom == 0:
+        headroom_status = "at_threshold"
+        headroom_message = "Запас снижения выручки отсутствует: исходное покрытие ровно на пороге."
+    elif decline_percent < Decimal("0.1"):
+        headroom_status = "negligible"
+        headroom_message = "Запас снижения выручки менее 0,1% — практически отсутствует."
+    else:
+        headroom_status = "positive"
+        displayed_percent = str(decline_percent.quantize(Decimal("0.01"), rounding=ROUND_DOWN)).replace(".", ",")
+        headroom_message = f"Запас снижения выручки до исходного порога покрытия: {displayed_percent}%. Значение округлено вниз."
     scenarios = []
     for decline in (0, 10, 20, 30):
         stressed_revenue = (revenue * (1 - Decimal(decline) / 100)).quantize(
@@ -56,16 +71,35 @@ def stress_financing(
                 evaluated_at=evaluated_at,
             )
         )
+        cash_flow = stressed_revenue - expenses
+        deficit = max(Decimal(0), -cash_flow)
+        if deficit > 0:
+            explanation = f"Операционный дефицит — {format_rubles(deficit)} в месяц до платежей по кредитам."
+        elif cash_flow == 0:
+            explanation = "Выручка равна операционным расходам: средств на платежи по кредитам не остаётся."
+        else:
+            explanation = f"Поток до долгов — {format_rubles(cash_flow)}; все платежи по кредитам — {format_rubles(existing + payment)} в месяц."
         scenarios.append(
             {
                 "revenueDeclinePercent": decline,
                 "monthlyRevenue": float(stressed_revenue),
+                "monthlyCashFlow": float(cash_flow),
+                "operatingDeficit": float(deficit),
+                "debtServiceShortfall": float(max(Decimal(0), existing + payment - cash_flow)),
+                "coverageExplanation": explanation,
                 "coveragePasses": stressed_revenue >= required,
                 "evaluation": result,
             }
         )
     return {
         "stressVersion": STRESS_VERSION,
+        "baselineMonthlyRevenue": float(revenue),
+        "monthlyExpenses": float(expenses),
+        "existingMonthlyPayments": float(existing),
+        "newMonthlyPayment": float(payment),
+        "coverageDefinition": "Покрытие = (выручка − операционные расходы) / (существующие платежи + новый платёж).",
+        "headroomStatus": headroom_status,
+        "headroomMessage": headroom_message,
         "calculatedAt": baseline["calculatedAt"],
         "assumptions": [
             "Снижается только выручка; расходы и существующие платежи фиксированы.",
@@ -75,9 +109,7 @@ def stress_financing(
         "coverageThreshold": float(threshold),
         "requiredMonthlyRevenue": float(required),
         "revenueHeadroom": float(headroom),
-        "maxRevenueDeclinePercent": float(headroom / revenue * 100)
-        if revenue > 0 and headroom >= 0
-        else None,
+        "maxRevenueDeclinePercent": float(decline_percent) if decline_percent is not None else None,
         "coverageStatus": "passes" if headroom >= 0 else "below_threshold",
         "thresholdExplanation": "Порог относится только к покрытию. На границе покрытие проходит; "
         "скоринг, документы и другие ограничения проверяются отдельно.",
@@ -96,6 +128,10 @@ def stress_summary(company, product, *, purpose, amount, term_months, evaluated_
         "scenarios": [{
             "revenueDeclinePercent": row["revenueDeclinePercent"],
             "monthlyRevenue": row["monthlyRevenue"],
+            "monthlyCashFlow": row["monthlyCashFlow"],
+            "operatingDeficit": row["operatingDeficit"],
+            "debtServiceShortfall": row["debtServiceShortfall"],
+            "coverageExplanation": row["coverageExplanation"],
             "coverage": row["evaluation"]["coverage"],
             "coveragePasses": row["coveragePasses"],
             "score": row["evaluation"]["scoring"]["score"],
