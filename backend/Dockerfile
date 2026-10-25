@@ -23,6 +23,7 @@ RUN uv run --with pyinstaller pyinstaller \
     --name main \
     --paths . \
     --collect-submodules uvicorn \
+    --collect-submodules websockets \
     --hidden-import sqlite3 \
     --hidden-import sqlalchemy.dialects.sqlite \
     --copy-metadata email-validator \

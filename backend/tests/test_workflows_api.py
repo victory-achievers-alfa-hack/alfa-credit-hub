@@ -266,6 +266,24 @@ def test_profile_score_is_calculated_from_current_data(client: TestClient) -> No
         session_generator.close()
 
 
+def test_seed_application_score_matches_current_company_score(client: TestClient) -> None:
+    client_token = login(client, "vector@demo.ru")
+    profile = client.get(
+        "/api/v1/companies/me",
+        headers={"Authorization": f"Bearer {client_token}"},
+    )
+    assert profile.status_code == 200, profile.text
+
+    bank_token = login(client, "bank@demo.ru")
+    application = client.get(
+        "/api/v1/bank/applications/APP-2026-003",
+        headers={"Authorization": f"Bearer {bank_token}"},
+    )
+    assert application.status_code == 200, application.text
+    assert profile.json()["scoringScore"] == 20
+    assert application.json()["application"]["scoring"]["score"] == 20
+
+
 def test_recommendation_audit_to_new_application_disbursement(client: TestClient) -> None:
     from backend.src.models import RecommendationAudit
     token = login(client, "cafe@demo.ru")

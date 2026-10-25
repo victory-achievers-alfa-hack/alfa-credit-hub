@@ -1732,6 +1732,10 @@ a:focus-visible {
   font-size: 11px;
 }
 
+.financing-priority {
+  margin-bottom: 16px;
+}
+
 .financing-side-note {
   padding: 24px;
   border-radius: 22px;

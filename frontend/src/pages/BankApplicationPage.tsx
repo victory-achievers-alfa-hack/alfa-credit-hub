@@ -116,7 +116,7 @@ export function BankApplicationPage() {
                 <strong>{application.scoring.score}</strong><small>из 100</small>
               </div>
               <div>
-                <div className="eyebrow">Объяснимая оценка</div>
+                <div className="eyebrow">Оценка на момент подачи</div>
                 <Typography.Title tag="h2" view="small" weight="bold">
                   {application.scoring.riskLevel === 'low' ? 'Допустимый риск' : application.scoring.riskLevel === 'medium' ? 'Нужно внимание' : 'Высокий риск'}
                 </Typography.Title>

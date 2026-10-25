@@ -37,7 +37,7 @@ export function BusinessPage() {
           </div>
         </div>
         <div className="business-summary__score">
-          <small>Предварительный балл</small>
+          <small>Текущий предварительный балл</small>
           <strong>{company.scoringScore}<span>/100</span></strong>
         </div>
       </div>

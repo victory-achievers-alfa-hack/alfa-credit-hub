@@ -19,7 +19,7 @@ from backend.src.models import (
     ScoringRule,
     User,
 )
-from backend.src.scoring.rules import MODEL_VERSION
+from backend.src.scoring.rules import MODEL_VERSION, score_company
 
 
 _DOCUMENTS = (
@@ -72,7 +72,7 @@ _COMPANIES = (
         "monthly_expenses": Decimal("740000"),
         "current_monthly_debt_payment": Decimal("120000"),
         "has_overdue": False,
-        "scoring_score": 75,
+        "scoring_score": 85,
         "status": "active",
         "turnover": [
             760000,
@@ -103,7 +103,7 @@ _COMPANIES = (
         "monthly_expenses": Decimal("850000"),
         "current_monthly_debt_payment": Decimal("70000"),
         "has_overdue": False,
-        "scoring_score": 88,
+        "scoring_score": 100,
         "status": "active",
         "turnover": [
             950000,
@@ -134,7 +134,7 @@ _COMPANIES = (
         "monthly_expenses": Decimal("490000"),
         "current_monthly_debt_payment": Decimal("90000"),
         "has_overdue": True,
-        "scoring_score": 38,
+        "scoring_score": 20,
         "status": "active",
         "turnover": [
             420000,
@@ -333,27 +333,6 @@ def _monthly_payment(amount: Decimal, rate: Decimal, term: int) -> Decimal:
     return payment.quantize(Decimal("1"), rounding="ROUND_HALF_UP")
 
 
-def _factor_data(company: Company, operating_flow: Decimal) -> list[dict]:
-    tenure_positive = company.registration_date.year <= 2023
-    flow_display = f"{operating_flow:,.0f}".replace(",", " ")
-    return [
-        {
-            "label": "История платежей",
-            "value": "Есть просрочки" if company.has_overdue else "Без просрочек",
-            "positive": not company.has_overdue,
-        },
-        {
-            "label": "Операционный поток",
-            "value": f"{flow_display} ₽/мес.",
-            "positive": operating_flow > company.current_monthly_debt_payment,
-        },
-        {
-            "label": "Возраст бизнеса",
-            "value": "Более 3 лет" if tenure_positive else "Менее 3 лет",
-            "positive": tenure_positive,
-        },
-    ]
-
 
 def _check_data(company: Company, coverage: Decimal) -> list[dict]:
     docs_ready = all(document.status == "ready" for document in company.documents)
@@ -487,43 +466,40 @@ def seed_demo_data(db: Session) -> None:
             .filter_by(application_id=application.id)
             .first()
         ):
-            factors = _factor_data(company, operating_flow)
-            risk = (
-                "low"
-                if company.scoring_score >= 70
-                else "medium"
-                if company.scoring_score >= 50
-                else "high"
-            )
-            summary = (
-                "Профиль устойчивый. Итог зависит от покрытия платежей по выбранной сумме."
-                if risk == "low"
-                else "Есть факторы риска — требуется решение сотрудника банка."
-                if risk == "medium"
-                else "Высокая нагрузка или просрочки требуют отказа либо ручного рассмотрения."
+            scoring = score_company(
+                {
+                    "monthlyRevenue": company.monthly_revenue,
+                    "monthlyExpenses": company.monthly_expenses,
+                    "existingPayments": company.current_monthly_debt_payment,
+                    "hasOverdue": company.has_overdue,
+                    "registrationDate": company.registration_date.isoformat(),
+                },
+                evaluated_at=data["updated_at"],
             )
             db.add(
                 ApplicationCheck(
                     id=f"CHECK-{application.id[-3:]}",
                     application_id=application.id,
                     rules_version=SCORING_POLICY_VERSION,
-                    score=company.scoring_score,
-                    risk=risk,
+                    score=scoring["score"],
+                    risk=scoring["riskLevel"],
                     rate=product.rate,
                     coverage=coverage,
                     monthly_payment=payment,
                     max_available_amount=product.max_amount,
                     eligible=not company.has_overdue
-                    and company.scoring_score >= 70
+                    and scoring["score"] >= 70
                     and coverage >= Decimal("1.25"),
-                    explanation=summary,
+                    explanation=scoring["summary"],
                     input_data={
                         "monthlyRevenue": str(company.monthly_revenue),
                         "monthlyExpenses": str(company.monthly_expenses),
                         "existingPayments": str(company.current_monthly_debt_payment),
                         "hasOverdue": company.has_overdue,
+                        "registrationDate": company.registration_date.isoformat(),
+                        "scoring": scoring,
                     },
-                    factors=factors,
+                    factors=scoring["factors"],
                     checks=_check_data(company, coverage),
                     created_at=data["updated_at"],
                 )

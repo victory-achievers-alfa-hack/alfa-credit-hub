@@ -3,6 +3,7 @@ import { NextActions } from '../components/NextActions';
 import { useMemo, useState, useRef } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Input } from '@alfalab/core-components/input';
+import { SelectDesktop as Select } from '@alfalab/core-components/select/desktop';
 import { Typography } from '@alfalab/core-components/typography';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
@@ -16,6 +17,10 @@ import { formatMoney } from '../utils/format';
 const purposes: CreditPurpose[] = ['goods', 'equipment', 'cash_gap'];
 const APPLICATION_MIN_AMOUNT = 50_000;
 const APPLICATION_MAX_AMOUNT = 5_000_000;
+const preferenceOptions = [
+  { key: 'min_interest', content: 'Минимальная переплата' },
+  { key: 'min_payment', content: 'Минимальный платёж' },
+];
 
 export function FinancingPage() {
   const navigate = useNavigate();
@@ -133,11 +138,21 @@ export function FinancingPage() {
             <span><small>Текущие платежи</small><strong>{formatMoney(company.existingPayments)}</strong></span>
           </div>
 
-          <label>Приоритет
-            <select value={preference} onChange={e => { setPreference(e.target.value as typeof preference); invalidate(); }}>
-              <option value="min_interest">Меньше переплата</option><option value="min_payment">Меньше платёж</option>
-            </select>
-          </label>
+          <Select
+            className="financing-priority"
+            label="Приоритет подбора"
+            labelView="outer"
+            size={56}
+            block
+            options={preferenceOptions}
+            optionsListWidth="field"
+            selected={preference}
+            onChange={({ selected }) => {
+              if (selected?.key !== 'min_interest' && selected?.key !== 'min_payment') return;
+              setPreference(selected.key);
+              invalidate();
+            }}
+          />
           {error && <p role="alert">{error}</p>}
           <Button
             view="accent"
