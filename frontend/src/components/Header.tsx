@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Typography } from '@alfalab/core-components/typography';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -22,6 +22,30 @@ export function Header() {
   const { notifications, getCompany, markNotificationRead, markAllNotificationsRead } = useCredit();
   const navigate = useNavigate();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (event.target instanceof Node && !notificationsRef.current?.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setNotificationsOpen(false);
+      notificationsTriggerRef.current?.focus();
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [notificationsOpen]);
 
   if (!currentUser) return null;
 
@@ -41,6 +65,7 @@ export function Header() {
   const openNotification = (notificationId: string, applicationId: string | null) => {
     void markNotificationRead(notificationId);
     setNotificationsOpen(false);
+    notificationsTriggerRef.current?.focus();
     if (applicationId) navigate(`/client/applications/${applicationId}`);
   };
 
@@ -75,12 +100,14 @@ export function Header() {
 
         <div className="user-menu">
           {currentUser.role === 'client' && (
-            <div className="notifications">
+            <div className="notifications" ref={notificationsRef}>
               <button
+                ref={notificationsTriggerRef}
                 type="button"
                 className={`notifications__trigger${unreadCount > 0 ? ' notifications__trigger--unread' : ''}`}
                 aria-label={unreadCount > 0 ? `Уведомления: ${unreadCount} новых` : 'Уведомления'}
                 aria-expanded={notificationsOpen}
+                aria-controls="notifications-panel"
                 onClick={() => setNotificationsOpen((open) => !open)}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -90,7 +117,7 @@ export function Header() {
               </button>
 
               {notificationsOpen && (
-                <div className="notifications-panel">
+                <div className="notifications-panel" id="notifications-panel" role="region" aria-label="Уведомления">
                   <div className="notifications-panel__header">
                     <div>
                       <strong>Уведомления</strong>

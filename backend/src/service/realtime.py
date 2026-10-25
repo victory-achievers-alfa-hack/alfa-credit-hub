@@ -4,6 +4,7 @@ from uuid import uuid4
 from fastapi import WebSocket
 
 from backend.src.dependency import CurrentUser
+from backend.src.schemas.applications import ApplicationDetailResponse
 
 
 class RealtimeConnections:
@@ -55,3 +56,16 @@ class RealtimeConnections:
 
 
 realtime_connections = RealtimeConnections()
+
+
+async def publish_application_updated(application: ApplicationDetailResponse) -> None:
+    payload = application.model_dump(mode="json", by_alias=True)
+    await realtime_connections.publish(
+        {
+            "type": "application.updated",
+            "companyId": application.company_id,
+            "applicationId": application.id,
+            "status": payload["status"],
+            "payload": {"application": payload},
+        }
+    )

@@ -266,6 +266,11 @@ _APPLICATIONS = (
     },
 )
 
+_DEMO_ALTERNATIVE_COMMENT = (
+    "Сумма снижена, чтобы коэффициент покрытия достиг безопасного уровня 1,25×."
+)
+
+
 _APP_EVENTS = (
     {
         "id": "EV-001",
@@ -288,7 +293,7 @@ _APP_EVENTS = (
         "actor_role": "bank",
         "event_type": "offer_created",
         "title": "Банк предложил другие условия",
-        "description": "Доступно предложение на 150 000 ₽.",
+        "description": _DEMO_ALTERNATIVE_COMMENT,
         "created_at": datetime(2026, 10, 22, 10, 25, tzinfo=timezone.utc),
     },
     {
@@ -516,7 +521,7 @@ def seed_demo_data(db: Session) -> None:
                 amount=Decimal("150000"),
                 rate=Decimal("24"),
                 term_months=24,
-                comment="Сумма снижена, чтобы коэффициент покрытия достиг безопасного уровня 1,25×.",
+                comment=_DEMO_ALTERNATIVE_COMMENT,
                 created_at=datetime(2026, 10, 22, 10, 25, tzinfo=timezone.utc),
             )
         )

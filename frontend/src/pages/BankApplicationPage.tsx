@@ -121,6 +121,11 @@ export function BankApplicationPage() {
                   {application.scoring.riskLevel === 'low' ? 'Допустимый риск' : application.scoring.riskLevel === 'medium' ? 'Нужно внимание' : 'Высокий риск'}
                 </Typography.Title>
                 <p>{application.scoring.summary}</p>
+                {application.scoring.calculatedAt && (
+                  <small className="scoring-calculated-at">
+                    Исходная оценка рассчитана {formatDateTime(application.scoring.calculatedAt)}
+                  </small>
+                )}
                 <NextActions actions={application.actions} />
                 <StressPanel stress={application.stress} snapshot />
                 {company.scoringScore >= 50 && company.scoringScore < 70 && <p>Текущий профиль требует рассмотрения: покрытие от 1,5×, сумма до 50% месячной выручки и обязательное обоснование сотрудника. Ограничения проверяет сервер.</p>}
@@ -239,7 +244,11 @@ export function BankApplicationPage() {
             {([...application.events].reverse()).map((item, index) => (
               <div className="mini-timeline__item" key={item.id}>
                 <span className={index === 0 ? 'mini-timeline__dot mini-timeline__dot--active' : 'mini-timeline__dot'} />
-                <div><strong>{item.title}</strong><small>{formatDateTime(item.createdAt)} · {item.actor}</small></div>
+                <div>
+                  <strong>{item.title}</strong>
+                  <p>{item.description}</p>
+                  <small>{formatDateTime(item.createdAt)} · {item.actor}</small>
+                </div>
               </div>
             ))}
           </section>

@@ -3,8 +3,9 @@ import { formatMoney } from '../utils/format';
 
 export function StressPanel({ stress, snapshot = false }: { stress?: StressSummary | null; snapshot?: boolean }) {
   if (!stress) return null;
-  return <details className="explanation-box stress-panel"><summary>Что будет при снижении выручки</summary>
-    {snapshot && <p>Исходный запрос на момент подачи. Предложение банка может иметь другие условия.</p>}
+  return <details className="stress-panel"><summary>Стресс-сценарий при снижении выручки</summary>
+    <p>Диагностический расчёт нагрузки. Он не является одобрением и не меняет статус заявки.</p>
+    {snapshot && <p>Показаны условия на момент подачи. Последующее предложение банка может отличаться.</p>}
     <p>{formatMoney(stress.amount)} · {stress.termMonths} мес. · {stress.rate}% годовых</p>
     <p>{stress.headroomMessage ?? (stress.maxRevenueDeclinePercent === null
       ? 'Исходное покрытие уже ниже требуемого порога.'
@@ -13,7 +14,7 @@ export function StressPanel({ stress, snapshot = false }: { stress?: StressSumma
       : `Запас снижения выручки до исходного порога покрытия: около ${stress.maxRevenueDeclinePercent.toFixed(1)}%.`)}</p>
     <p>{stress.coverageDefinition ?? 'Покрытие = (выручка − операционные расходы) / (существующие платежи + новый платёж).'}</p>
     <p>Исходный порог покрытия: {stress.coverageThreshold.toFixed(2)}×</p>
-    <dl className="stress-rows">{stress.scenarios.map(row => <div className="stress-row" key={row.revenueDeclinePercent}>
+    <dl className="stress-rows">{stress.scenarios.map(row => <div className={`stress-row${!row.policyPasses ? ' stress-row--adverse' : row.reviewRequired ? ' stress-row--review' : ''}`} key={row.revenueDeclinePercent}>
       <dt>{row.revenueDeclinePercent === 0 ? 'Без снижения' : `Выручка −${row.revenueDeclinePercent}%`}</dt>
       <dd><strong>{row.coverage.toFixed(2)}×</strong> · {row.coveragePasses ? 'исходный порог пройден' : 'ниже исходного порога'}
         {(row.operatingDeficit ?? 0) > 0 && <span>{row.coverageExplanation}</span>}

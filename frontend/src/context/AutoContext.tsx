@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../services/api';
 import { DEMO_USERS } from '../constants';
+import { PageSkeleton } from '../components/PageSkeleton';
 import type { UserProfile } from '../types/credit';
 
 interface LoginResult { success: boolean; message?: string }
@@ -76,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
   };
-  if (loading) return <p role="status">Проверяем сессию…</p>;
+  if (loading) return <PageSkeleton label="Проверяем сессию…" />;
   return <AuthContext.Provider value={{ currentUser, login, logout, loginAs: async id => {
     const demo = DEMO_USERS.find(user => user.id === id);
     return demo ? login(demo.email, '123456') : { success: false, message: 'Профиль не найден' };

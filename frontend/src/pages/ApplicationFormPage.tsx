@@ -6,11 +6,12 @@ import { Checkbox } from '@alfalab/core-components/checkbox';
 import { Typography } from '@alfalab/core-components/typography';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
+import { PageSkeleton } from '../components/PageSkeleton';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
 import { PURPOSE_LABELS } from '../constants';
 import type { CreditPurpose, Recommendation } from '../types/credit';
-import { formatMoney } from '../utils/format';
+import { formatDateTime, formatMoney } from '../utils/format';
 
 const validPurposes: CreditPurpose[] = ['goods', 'equipment', 'cash_gap'];
 
@@ -39,14 +40,25 @@ export function ApplicationFormPage() {
     // oxlint-disable-next-line react/set-state-in-effect
     setLoading(true); setRecommendation(undefined); setConfirmed(false); setError('');
     if (!companyId || !productId || !purpose || !amount || !termMonths) { setLoading(false); return; }
-    recommend({ companyId, purpose, amount, termMonths }).then(items => {
-      if (active) setRecommendation(items.find(item => item.product.id === productId && item.amount === amount && item.termMonths === termMonths));
+    recommend({ companyId, purpose, amount, termMonths }).then(result => {
+      const items = Object.values(result.groups).flat();
+      if (active) setRecommendation(items.find(item => item.product.id === productId && item.offer.amount === amount && item.offer.termMonths === termMonths));
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Ошибка расчёта'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [companyId, productId, purpose, amount, termMonths, recommend]);
-  if (loading) return <p role="status">Проверяем условия…</p>;
-  if (error && !recommendation) return <div role="alert">{error}<Button onClick={() => navigate('/client/financing')}>К подбору</Button></div>;
+  if (loading) return <PageSkeleton label="Проверяем условия…" />;
+  if (error && !recommendation) {
+    return (
+      <div className="page-shell">
+        <div className="surface-card loading-error" role="alert">
+          <strong>Не удалось проверить условия</strong>
+          <p>{error}</p>
+          <Button view="accent" size={48} onClick={() => navigate('/client/financing')}>К подбору</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!company || !product || !purpose || !amount || !termMonths || !recommendation) {
     return (
@@ -65,14 +77,14 @@ export function ApplicationFormPage() {
     if (submitting) return;
     setSubmitting(true); setError('');
     try {
-    const application = await createApplication({
-      companyId: company.id,
-      productId: product.id,
-      purpose,
-      amount,
-      termMonths,
-    });
-    navigate(`/client/applications/${application.id}`);
+      const application = await createApplication({
+        companyId: company.id,
+        productId: product.id,
+        purpose,
+        amount,
+        termMonths,
+      });
+      navigate(`/client/applications/${application.id}`);
     } catch (e) { setError(e instanceof Error ? e.message : 'Не удалось отправить заявку'); }
     finally { setSubmitting(false); }
   };
@@ -122,17 +134,23 @@ export function ApplicationFormPage() {
               <div className="selected-product__numbers">
                 <div><small>Сумма</small><strong>{formatMoney(amount)}</strong></div>
                 <div><small>Срок</small><strong>{termMonths} мес.</strong></div>
-                <div><small>Ставка</small><strong>{recommendation.rate}%</strong></div>
-                <div><small>Платёж</small><strong>{formatMoney(recommendation.monthlyPayment)}</strong></div>
+                <div><small>Ставка</small><strong>{recommendation.offer.rate}%</strong></div>
+                <div><small>Платёж</small><strong>{formatMoney(recommendation.offer.monthlyPayment)}</strong></div>
               </div>
             </div>
-            <NextActions actions={recommendation.actions} />
+            <p className="scoring-calculated-at">Расчёт выполнен {formatDateTime(recommendation.selectedEvaluation.calculatedAt)}</p>
+            <NextActions actions={recommendation.selectedEvaluation.actions} />
             <StressPanel stress={recommendation.stress} />
-            {!recommendation.eligible && (
+            {recommendation.selectedEvaluation.reviewRequired && (
               <div className="explanation-box explanation-box--warning">
                 <strong>Потребуется решение сотрудника банка</strong>
-                <p>{recommendation.warning} Сотрудник банка проверит ограничения и может запросить сведения либо отказать.</p>
-                {recommendation.recommendedAmount && <span>Расчётная комфортная сумма: <b>{formatMoney(recommendation.recommendedAmount)}</b></span>}
+                <p>{recommendation.selectedEvaluation.reasons.map((reason) => reason.message).join(' ')} Решение будет принято после подачи заявки.</p>
+              </div>
+            )}
+            {!recommendation.selectedEvaluation.policyPasses && (
+              <div className="explanation-box explanation-box--warning">
+                <strong>Условия нельзя отправить</strong>
+                <p>{recommendation.selectedEvaluation.reasons.map((reason) => reason.message).join(' ')}</p>
               </div>
             )}
           </section>
@@ -144,7 +162,7 @@ export function ApplicationFormPage() {
           <p>После отправки заявка появится у сотрудника банка. Статус можно отслеживать в кабинете.</p>
           <div className="submit-card__summary">
             <span><small>Запрашиваем</small><strong>{formatMoney(amount)}</strong></span>
-            <span><small>Платёж</small><strong>{formatMoney(recommendation.monthlyPayment)}/мес.</strong></span>
+            <span><small>Платёж</small><strong>{formatMoney(recommendation.offer.monthlyPayment)}/мес.</strong></span>
           </div>
           {error && <p role="alert">{error}</p>}
           <Checkbox
@@ -154,7 +172,7 @@ export function ApplicationFormPage() {
             onChange={(_, payload) => setConfirmed(payload.checked)}
             label="Подтверждаю корректность данных и согласен на демонстрационную обработку заявки"
           />
-          <Button view="accent" size={56} block disabled={!confirmed || submitting || recommendation.group === 'unavailable'} onClick={handleSubmit}>
+          <Button view="accent" size={56} block disabled={!confirmed || submitting || !recommendation.selectedEvaluation.policyPasses} onClick={handleSubmit}>
             Отправить заявку
           </Button>
           <small className="submit-card__legal">Это учебный сценарий. Реальная выдача денежных средств не выполняется.</small>

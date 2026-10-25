@@ -61,6 +61,7 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    window.dispatchEvent(new Event(response.status >= 500 ? 'service-unavailable' : 'service-available'));
     const text = response.status === 204 ? '' : await response.text();
     const data = parsePayload(text) as ApiErrorPayload | undefined;
 
@@ -83,9 +84,12 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (controller.signal.aborted && !signal?.aborted) {
-      throw new ApiError(0, 'Сервер не ответил вовремя', 'REQUEST_TIMEOUT');
+      window.dispatchEvent(new Event('service-unavailable'));
+      throw new ApiError(0, 'Сервис временно недоступен', 'REQUEST_TIMEOUT');
     }
-    throw error;
+    if (signal?.aborted) throw error;
+    window.dispatchEvent(new Event('service-unavailable'));
+    throw new ApiError(0, 'Сервис временно недоступен', 'NETWORK_ERROR');
   } finally {
     window.clearTimeout(timeout);
     signal?.removeEventListener('abort', abortFromCaller);

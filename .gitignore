@@ -25,6 +25,7 @@ dist-ssr/
 *.tsbuildinfo
 *.local
 *.log
+logs/
 
 # Editors and operating systems
 .idea/

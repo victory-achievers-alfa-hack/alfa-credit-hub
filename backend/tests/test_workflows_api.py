@@ -5,6 +5,7 @@ from backend.main import app
 from backend.src.database import Base
 from backend.src.dependency import get_db
 from backend.src.seed import seed_demo_data
+from backend.src.service.realtime import realtime_connections
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -44,6 +45,33 @@ def login(client: TestClient, email: str) -> str:
     )
     assert response.status_code == 200, response.text
     return response.json()["accessToken"]
+
+
+@pytest.fixture
+def published_realtime_events(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    events: list[dict] = []
+
+    async def capture(event: dict) -> None:
+        events.append(event)
+
+    monkeypatch.setattr(realtime_connections, "publish", capture)
+    return events
+
+
+def assert_application_update(events: list[dict], response) -> None:
+    application = response.json()
+    application_events = [
+        event for event in events if event["type"] == "application.updated"
+    ]
+    assert application_events == [
+        {
+            "type": "application.updated",
+            "companyId": application["companyId"],
+            "applicationId": application["id"],
+            "status": application["status"],
+            "payload": {"application": application},
+        }
+    ]
 
 
 def test_authentication_login_me_and_unauthorized(client: TestClient) -> None:
@@ -88,6 +116,22 @@ def test_decimal_fields_are_json_numbers(client: TestClient) -> None:
     assert type(catalog.json()[0]["minAmount"]) is float
 
 
+def test_seed_offer_comment_is_preserved_in_event_history(
+    client: TestClient,
+) -> None:
+    token = login(client, "client@demo.ru")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for _ in range(2):
+        response = client.get("/api/v1/applications/APP-2026-001", headers=headers)
+        assert response.status_code == 200, response.text
+        application = response.json()
+        offer_event = next(
+            event for event in application["events"] if event["id"] == "EV-002"
+        )
+        assert offer_event["description"] == application["offer"]["reason"]
+
+
 def test_http_notifications_match_realtime_payload_fields(client: TestClient) -> None:
     token = login(client, "client@demo.ru")
     headers = {"Authorization": f"Bearer {token}"}
@@ -118,7 +162,10 @@ def test_http_notifications_match_realtime_payload_fields(client: TestClient) ->
     assert marked.json()["read"] is True
 
 
-def test_zernya_application_approval_and_disbursement(client: TestClient) -> None:
+def test_zernya_application_approval_and_disbursement(
+    client: TestClient,
+    published_realtime_events: list[dict],
+) -> None:
     client_token = login(client, "cafe@demo.ru")
     bank_token = login(client, "bank@demo.ru")
     client_headers = {"Authorization": f"Bearer {client_token}"}
@@ -132,6 +179,8 @@ def test_zernya_application_approval_and_disbursement(client: TestClient) -> Non
     )
     assert decision.status_code == 200, decision.text
     assert decision.json()["status"] == "offer"
+    assert_application_update(published_realtime_events, decision)
+    published_realtime_events.clear()
 
     for endpoint, expected_status in (
         ("accept", "sign"),
@@ -145,9 +194,14 @@ def test_zernya_application_approval_and_disbursement(client: TestClient) -> Non
         )
         assert response.status_code == 200, response.text
         assert response.json()["status"] == expected_status
+        assert_application_update(published_realtime_events, response)
+        published_realtime_events.clear()
 
 
-def test_gorod_alternative_offer(client: TestClient) -> None:
+def test_gorod_alternative_offer_and_decline(
+    client: TestClient,
+    published_realtime_events: list[dict],
+) -> None:
     client_token = login(client, "client@demo.ru")
     bank_token = login(client, "bank@demo.ru")
     client_headers = {"Authorization": f"Bearer {client_token}"}
@@ -166,6 +220,8 @@ def test_gorod_alternative_offer(client: TestClient) -> None:
     assert created.status_code == 200, created.text
     application_id = created.json()["id"]
     assert created.json()["status"] == "review"
+    assert_application_update(published_realtime_events, created)
+    published_realtime_events.clear()
 
     offer = client.post(
         f"/api/v1/bank/applications/{application_id}/decision",
@@ -181,10 +237,22 @@ def test_gorod_alternative_offer(client: TestClient) -> None:
     assert offer.status_code == 200, offer.text
     assert offer.json()["status"] == "offer"
     assert float(offer.json()["offer"]["amount"]) == 150000
+    assert_application_update(published_realtime_events, offer)
+    published_realtime_events.clear()
+
+    declined = client.post(
+        f"/api/v1/applications/{application_id}/accept",
+        headers=client_headers,
+        json={"accepted": False},
+    )
+    assert declined.status_code == 200, declined.text
+    assert declined.json()["status"] == "rejected"
+    assert_application_update(published_realtime_events, declined)
 
 
 def test_vector_need_info_review_rejection_and_invalid_transition(
     client: TestClient,
+    published_realtime_events: list[dict],
 ) -> None:
     client_token = login(client, "vector@demo.ru")
     bank_token = login(client, "bank@demo.ru")
@@ -193,30 +261,53 @@ def test_vector_need_info_review_rejection_and_invalid_transition(
     application_id = "APP-2026-003"
     decision_url = f"/api/v1/bank/applications/{application_id}/decision"
 
+    bank_info_comment = "Уточните сведения о задолженности."
+    client_info_comment = "Сведения предоставлены."
+    rejection_comment = "Высокая долговая нагрузка."
     need_info = client.post(
         decision_url,
         headers=bank_headers,
-        json={"kind": "need_info", "comment": "Уточните сведения о задолженности."},
+        json={"kind": "need_info", "comment": bank_info_comment},
     )
     assert need_info.status_code == 200, need_info.text
     assert need_info.json()["status"] == "need_info"
+    assert_application_update(published_realtime_events, need_info)
+    published_realtime_events.clear()
 
     returned = client.post(
         f"/api/v1/applications/{application_id}/additional-info",
         headers=client_headers,
-        json={"comment": "Сведения предоставлены."},
+        json={"comment": client_info_comment},
     )
     assert returned.status_code == 200, returned.text
     assert returned.json()["status"] == "review"
+    assert_application_update(published_realtime_events, returned)
+    published_realtime_events.clear()
 
     rejected = client.post(
         decision_url,
         headers=bank_headers,
-        json={"kind": "reject", "comment": "Высокая долговая нагрузка."},
+        json={"kind": "reject", "comment": rejection_comment},
     )
     assert rejected.status_code == 200, rejected.text
     assert rejected.json()["status"] == "rejected"
+    assert_application_update(published_realtime_events, rejected)
 
+    for _ in range(2):
+        reloaded = client.get(
+            f"/api/v1/applications/{application_id}", headers=client_headers
+        )
+        assert reloaded.status_code == 200, reloaded.text
+        descriptions = {
+            event["description"] for event in reloaded.json()["events"]
+        }
+        assert {
+            bank_info_comment,
+            client_info_comment,
+            rejection_comment,
+        } <= descriptions
+
+    published_realtime_events.clear()
     invalid_transition = client.post(
         f"/api/v1/applications/{application_id}/accept",
         headers=client_headers,
@@ -224,6 +315,7 @@ def test_vector_need_info_review_rejection_and_invalid_transition(
     )
     assert invalid_transition.status_code == 409
     assert invalid_transition.json()["code"] == "INVALID_STATUS_TRANSITION"
+    assert published_realtime_events == []
 
 
 def test_cookie_logout(client: TestClient) -> None:

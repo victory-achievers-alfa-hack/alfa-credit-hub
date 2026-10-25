@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useAuth } from './AutoContext';
 import { api, allItems, ApiError, realtimeUrl } from '../services/api';
 import { RealtimeClient, type RealtimeConnectionStatus } from '../services/realtime';
+import { PageSkeleton } from '../components/PageSkeleton';
 import type {
   BankDecisionInput,
   ClientNotification,
@@ -9,59 +10,9 @@ import type {
   CreateApplicationInput,
   CreditApplication,
   CreditProduct,
-  Recommendation,
-  RecommendationAssessment,
-  RecommendationGroup,
   RecommendationInput,
-  NextAction,
-  StressSummary,
+  RecommendationResponse,
 } from '../types/credit';
-
-const RECOMMENDATION_GROUPS: RecommendationGroup[] = [
-  'requested',
-  'other_terms',
-  'reduced_amount',
-  'requires_action',
-  'unavailable',
-];
-
-type RecommendationOfferDto = {
-  amount: number;
-  termMonths: number;
-  rate: number;
-  monthlyPayment: number;
-  interestAmount: number;
-  coverage: number;
-  eligible: boolean;
-  reviewRequired: boolean;
-};
-
-type RankedRecommendationDto = {
-  product: CreditProduct;
-  offer: RecommendationOfferDto;
-  evaluation: {
-    assessment: RecommendationAssessment;
-    reasons: Array<{ code: string; message: string }>;
-    recommendedAmount: number | null;
-  };
-  selectedEvaluation: {
-    assessment: RecommendationAssessment;
-    reasons: Array<{ code: string; message: string }>;
-    actions: NextAction[];
-    requiredCoverage: number;
-    coveragePasses: boolean;
-  };
-  stress: StressSummary;
-  highlights: string[];
-  group: RecommendationGroup;
-  rankingReason: string;
-};
-
-type RecommendationResponseDto = {
-  evaluationId: string;
-  rankingVersion: string;
-  groups: Record<RecommendationGroup, RankedRecommendationDto[]>;
-};
 
 export interface AdditionalInfoInput {
   comment: string;
@@ -82,7 +33,7 @@ interface CreditContextValue {
   realtimeStatus: RealtimeConnectionStatus;
   getCompany: (id?: string | null) => CompanyProfile | undefined;
   getProduct: (id: string) => CreditProduct | undefined;
-  recommend: (input: RecommendationInput) => Promise<Recommendation[]>;
+  recommend: (input: RecommendationInput) => Promise<RecommendationResponse>;
   createApplication: (input: CreateApplicationInput) => Promise<CreditApplication>;
   decideApplication: (id: string, decision: BankDecisionInput) => Promise<ActionResult>;
   respondToInfoRequest: (id: string, input: AdditionalInfoInput) => Promise<ActionResult>;
@@ -91,7 +42,6 @@ interface CreditContextValue {
   disburseApplication: (id: string) => Promise<ActionResult>;
   markNotificationRead: (id: string) => Promise<ActionResult>;
   markAllNotificationsRead: (companyId: string) => Promise<void>;
-  resetDemo: () => void;
 }
 
 const CreditContext = createContext<CreditContextValue | undefined>(undefined);
@@ -124,8 +74,10 @@ export function CreditProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<CreditProduct[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('idle');
+  const readyRef = useRef(false);
   const refreshSequence = useRef(0);
   const refreshController = useRef<AbortController | null>(null);
   const mutating = useRef(false);
@@ -192,10 +144,11 @@ export function CreditProvider({ children }: { children: ReactNode }) {
         setProducts(catalogue);
         setNotifications(notices);
         setError('');
+        readyRef.current = true;
         setReady(true);
       }
     } catch (requestError) {
-      if (!controller.signal.aborted && request === refreshSequence.current) {
+      if (!controller.signal.aborted && request === refreshSequence.current && !readyRef.current) {
         setError(requestError instanceof Error ? requestError.message : 'Не удалось загрузить данные');
       }
     }
@@ -209,6 +162,9 @@ export function CreditProvider({ children }: { children: ReactNode }) {
     const realtime = new RealtimeClient(realtimeUrl());
     let connectedOnce = false;
     const unsubscribeMessages = realtime.subscribe((message) => {
+      const initialLoadPending = !readyRef.current;
+      generation.current++;
+      refreshController.current?.abort();
       if (message.type === 'application.updated') {
         upsertApplication(message.payload.application);
       } else if (message.type === 'notification.created') {
@@ -223,6 +179,7 @@ export function CreditProvider({ children }: { children: ReactNode }) {
             ? { ...notification, read: true }
             : notification));
       }
+      if (initialLoadPending) void refresh();
     });
     const unsubscribeStatus = realtime.subscribeStatus((status) => {
       setRealtimeStatus(status);
@@ -239,7 +196,11 @@ export function CreditProvider({ children }: { children: ReactNode }) {
     const synchronizeVisibleTab = () => {
       if (!document.hidden) void refresh();
     };
+    const markServiceUnavailable = () => setServiceUnavailable(true);
+    const markServiceAvailable = () => setServiceUnavailable(false);
     document.addEventListener('visibilitychange', synchronizeVisibleTab);
+    window.addEventListener('service-unavailable', markServiceUnavailable);
+    window.addEventListener('service-available', markServiceAvailable);
 
     return () => {
       refreshController.current?.abort();
@@ -248,6 +209,8 @@ export function CreditProvider({ children }: { children: ReactNode }) {
       unsubscribeStatus();
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', synchronizeVisibleTab);
+      window.removeEventListener('service-unavailable', markServiceUnavailable);
+      window.removeEventListener('service-available', markServiceAvailable);
     };
   }, [currentUser, refresh, upsertApplication]);
 
@@ -271,42 +234,26 @@ export function CreditProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const recommend = useCallback(async (input: RecommendationInput): Promise<Recommendation[]> => {
-    const response = await api<RecommendationResponseDto>('/recommendations', {
+  const recommend = useCallback((input: RecommendationInput): Promise<RecommendationResponse> => (
+    api<RecommendationResponse>('/recommendations', {
       method: 'POST',
       body: input,
-    });
-    return RECOMMENDATION_GROUPS.flatMap((group) => response.groups[group].map((item) => {
-      const explanation = item.selectedEvaluation.reasons.map((reason) => reason.message).join(' ');
-      return {
-        product: item.product,
-        ...item.offer,
-        evaluationId: response.evaluationId,
-        rankingVersion: response.rankingVersion,
-        group: item.group,
-        assessment: item.selectedEvaluation.assessment,
-        actions: item.selectedEvaluation.actions,
-        requiredCoverage: item.selectedEvaluation.requiredCoverage,
-        coveragePasses: item.selectedEvaluation.coveragePasses,
-        stress: item.stress,
-        highlights: item.highlights,
-        reason: explanation,
-        rankingReason: item.rankingReason,
-        warning: item.offer.eligible ? undefined : explanation,
-        recommendedAmount: item.evaluation.recommendedAmount ?? undefined,
-      };
-    }));
-  }, []);
+    })
+  ), []);
 
   if (!currentUser) return <>{children}</>;
-  if (!ready) {
+  if (!ready && error) {
     return (
-      <div className="page-shell" role="status">
-        {error || 'Загружаем данные…'}
-        {error && <button type="button" onClick={() => void refresh()}>Повторить</button>}
+      <div className="page-shell">
+        <div className="surface-card loading-error" role="alert">
+          <strong>Не удалось загрузить данные</strong>
+          <p>{error}</p>
+          <button className="text-link" type="button" onClick={() => void refresh()}>Повторить</button>
+        </div>
       </div>
     );
   }
+  if (!ready) return <PageSkeleton />;
 
   return (
     <CreditContext.Provider value={{
@@ -357,12 +304,10 @@ export function CreditProvider({ children }: { children: ReactNode }) {
           if (!successful) break;
         }
       },
-      resetDemo: () => { void refresh(); },
     }}>
-      {error && <p className="page-shell" role="alert">{error}</p>}
-      {realtimeStatus === 'reconnecting' && (
-        <p className="realtime-notice" role="status">
-          Соединение с обновлениями восстанавливается. Данные временно синхронизируются опросом сервера.
+      {(serviceUnavailable || realtimeStatus === 'reconnecting') && (
+        <p className="realtime-notice realtime-notice--error" role="alert">
+          Сервис временно недоступен. Пытаемся восстановить соединение.
         </p>
       )}
       <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>

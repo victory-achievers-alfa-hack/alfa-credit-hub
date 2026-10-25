@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button } from '@alfalab/core-components/button';
+
 import { Input } from '@alfalab/core-components/input';
 import { Typography } from '@alfalab/core-components/typography';
 import { useNavigate } from 'react-router-dom';
@@ -25,7 +25,7 @@ const bankFilterOptions = [
 
 export function BankDashboardPage() {
   const navigate = useNavigate();
-  const { getCompany, applications, resetDemo } = useCredit();
+  const { getCompany, applications } = useCredit();
   const [filter, setFilter] = useState<BankFilter>('all');
   const [query, setQuery] = useState('');
 
@@ -49,7 +49,6 @@ export function BankDashboardPage() {
         eyebrow="Рабочее место андеррайтера"
         title="Очередь заявок"
         description="Проверяйте расчёты, фиксируйте решение и управляйте кредитным процессом."
-        actions={<Button view="secondary" size={48} onClick={resetDemo}>Обновить данные</Button>}
       />
 
       <div className="metrics-grid metrics-grid--four">

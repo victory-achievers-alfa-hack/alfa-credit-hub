@@ -103,29 +103,115 @@ export interface NextAction {
   allowedTerms?: number[] | null;
 }
 
-export interface Recommendation {
-  coveragePasses?: boolean;
-  stress?: StressSummary;
-  actions?: NextAction[];
-  highlights?: string[];
-  requiredCoverage?: number;
-  reviewRequired?: boolean;
-  evaluationId?: string;
-  rankingVersion?: string;
+export interface RecommendationOffer {
   amount: number;
   termMonths: number;
   rate: number;
-  interestAmount: number;
-  group: RecommendationGroup;
-  assessment?: RecommendationAssessment;
-  rankingReason: string;
-  product: CreditProduct;
   monthlyPayment: number;
+  lastPayment: number;
+  totalRepayment: number;
+  interestAmount: number;
   coverage: number;
   eligible: boolean;
-  reason: string;
-  warning?: string;
-  recommendedAmount?: number;
+  reviewRequired: boolean;
+}
+
+export interface RecommendationReason {
+  code: string;
+  message: string;
+  field?: string | null;
+  actual?: number | string | null;
+  minimum?: number | null;
+  maximum?: number | null;
+  allowedValues?: Array<number | string> | null;
+}
+
+export interface FinancingConstraints {
+  productMinAmount: number;
+  productMaxAmount: number;
+  allowedTerms: number[];
+  allowedPurposes: CreditPurpose[];
+  appliedAmountLimit: number;
+  requiredCoverage: number;
+  maxNewMonthlyPayment: number;
+  monthlyCashFlow: number;
+  totalMonthlyDebtPayment: number;
+  requiredMonthlyRevenue: number;
+  monthlyCoverageShortfall: number;
+}
+
+export interface RecommendationEvaluation extends RecommendationOffer {
+  coveragePasses: boolean;
+  constraints: FinancingConstraints;
+  actions: NextAction[];
+  policyPasses: boolean;
+  requiredCoverage: number;
+  amountLimit: number;
+  productId: string;
+  purpose: CreditPurpose;
+  assessment: RecommendationAssessment;
+  reasons: RecommendationReason[];
+  checks: ApplicationCheck[];
+  alternative: RecommendationOffer | null;
+  recommendedAmount: number | null;
+  scoring: ScoringResult;
+  policyVersion: string;
+  calculatedAt: string;
+}
+
+export interface Recommendation {
+  product: CreditProduct;
+  evaluation: RecommendationEvaluation;
+  selectedEvaluation: RecommendationEvaluation;
+  stress: StressSummary;
+  highlights: string[];
+  comparisonAmount: number | null;
+  comparisonCount: number;
+  offer: RecommendationOffer;
+  termChanged: boolean;
+  amountShortfall: number;
+  group: RecommendationGroup;
+  rankInGroup: number;
+  rankingReason: string;
+}
+
+export type RequestSummaryStatus =
+  | 'exact_available'
+  | 'exact_review'
+  | 'alternatives_available'
+  | 'information_required'
+  | 'unavailable';
+
+export interface RecommendationRequestSummary {
+  status: RequestSummaryStatus;
+  message: string;
+  exactMatchCount: number;
+  exactReviewCount: number;
+  otherTermCount: number;
+  reducedAmountCount: number;
+}
+
+export interface RequestedProductCheck {
+  productId: string;
+  productName: string;
+  assessment: string;
+  policyPasses: boolean;
+  reviewRequired: boolean;
+  reasons: RecommendationReason[];
+  constraints: FinancingConstraints;
+}
+
+export interface RecommendationResponse {
+  requestSummary: RecommendationRequestSummary;
+  requestChecks: RequestedProductCheck[];
+  evaluationId: string;
+  companyId: string;
+  rankingVersion: string;
+  preference: 'min_interest' | 'min_payment';
+  requestedAmount: number;
+  requestedTermMonths: number;
+  calculatedAt: string;
+  groups: Record<RecommendationGroup, Recommendation[]>;
 }
 
 export interface ApplicationCheck {
@@ -222,14 +308,39 @@ export interface BankDecisionInput {
 
 
 export interface StressSummary {
-  coverageDefinition?: string | null; headroomMessage?: string | null;
+  baselineMonthlyRevenue?: number | null;
+  monthlyExpenses?: number | null;
+  existingMonthlyPayments?: number | null;
+  newMonthlyPayment?: number | null;
+  coverageDefinition?: string | null;
+  headroomMessage?: string | null;
   headroomStatus?: 'below_threshold' | 'at_threshold' | 'negligible' | 'positive' | null;
-  stressVersion: string; calculatedAt: string; policyVersion: string;
-  amount: number; termMonths: number; rate: number;
-  assumptions: string[]; coverageThreshold: number; requiredMonthlyRevenue: number;
-  revenueHeadroom: number; maxRevenueDeclinePercent: number | null;
-  coverageStatus: 'passes' | 'below_threshold'; thresholdExplanation: string;
-  scenarios: { coverageExplanation?: string | null; operatingDeficit?: number | null; monthlyCashFlow?: number | null; debtServiceShortfall?: number | null; revenueDeclinePercent: number; monthlyRevenue: number; coverage: number;
-    coveragePasses: boolean; score: number; policyPasses: boolean; requiredCoverage: number;
-    reviewRequired: boolean; assessment: string }[];
+  stressVersion: string;
+  calculatedAt: string;
+  policyVersion: string;
+  amount: number;
+  termMonths: number;
+  rate: number;
+  assumptions: string[];
+  coverageThreshold: number;
+  requiredMonthlyRevenue: number;
+  revenueHeadroom: number;
+  maxRevenueDeclinePercent: number | null;
+  coverageStatus: 'passes' | 'below_threshold';
+  thresholdExplanation: string;
+  scenarios: Array<{
+    coverageExplanation?: string | null;
+    operatingDeficit?: number | null;
+    monthlyCashFlow?: number | null;
+    debtServiceShortfall?: number | null;
+    revenueDeclinePercent: number;
+    monthlyRevenue: number;
+    coverage: number;
+    coveragePasses: boolean;
+    score: number;
+    policyPasses: boolean;
+    requiredCoverage: number;
+    reviewRequired: boolean;
+    assessment: string;
+  }>;
 }

@@ -221,8 +221,13 @@ export function ClientApplicationPage() {
             </div>
             <span className="score-chip">{application.scoring.score}/100</span>
           </div>
+          {application.scoring.calculatedAt && (
+            <p className="scoring-calculated-at">
+              Оценка на момент подачи рассчитана {formatDateTime(application.scoring.calculatedAt)}
+            </p>
+          )}
           <NextActions actions={application.actions} />
-                <StressPanel stress={application.stress} snapshot />
+          <StressPanel stress={application.stress} snapshot />
           <div className="check-list">
             {application.checks.map((check) => (
               <div className="check-row" key={check.id}>

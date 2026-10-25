@@ -13,7 +13,10 @@ from backend.src.schemas.enums import ApplicationStatus, BankDecisionKind
 from backend.src.service import applications as applications_service
 from backend.src.service import profile as profile_service
 from backend.src.service.application_state import ensure_application_transition
-from backend.src.service.realtime import realtime_connections
+from backend.src.service.realtime import (
+    publish_application_updated,
+    realtime_connections,
+)
 from backend.src.scoring import assess_financing, InputError
 from backend.src.scoring.stress import stress_summary
 
@@ -197,13 +200,6 @@ async def make_bank_decision(
     response = applications_service._application_response(
         applications_service._load_application(db, application_id)
     )
-    application_event = {
-        "type": "application.updated",
-        "companyId": application.company_id,
-        "applicationId": application.id,
-        "status": application.status,
-        "payload": {"application": response.model_dump(mode="json", by_alias=True)},
-    }
     notification_event = {
         "type": "notification.created",
         "userId": client.public_id,
@@ -220,7 +216,7 @@ async def make_bank_decision(
             }
         },
     }
-    await realtime_connections.publish(application_event)
+    await publish_application_updated(response)
     await realtime_connections.publish(notification_event)
     return response
 
