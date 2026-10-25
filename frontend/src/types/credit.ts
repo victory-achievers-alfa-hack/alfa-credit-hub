@@ -77,7 +77,14 @@ export interface CreditProduct {
   accent: string;
 }
 
+export interface NextAction {
+  code: string; title: string; message: string; amount?: number | null; termMonths?: number | null; documentKind?: string | null;
+}
+
 export interface Recommendation {
+  actions?: NextAction[];
+  highlights?: string[];
+  requiredCoverage?: number;
   reviewRequired?: boolean;
   amount?: number;
   termMonths?: number;
@@ -139,6 +146,8 @@ export interface ApplicationEvent {
 }
 
 export interface CreditApplication {
+  actions?: NextAction[];
+  requiredCoverage?: number;
   id: string;
   companyId: string;
   productId: string;

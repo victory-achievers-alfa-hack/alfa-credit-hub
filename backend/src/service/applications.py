@@ -141,6 +141,8 @@ def set_application(
             "amount": str(request.amount),
             "termMonths": request.term_months,
             "assessment": assessment["assessment"],
+            "actions": assessment["actions"],
+            "requiredCoverage": assessment["requiredCoverage"],
             "scoring": assessment["scoring"],
             "calculatedAt": scoring["calculatedAt"],
         },
@@ -427,6 +429,8 @@ def _application_response(
         for event in application.events
     ]
     return application_schemas.ApplicationDetailResponse(
+        actions=[action for action in assessment.input_data.get("actions", []) if action["code"] != "SUBMIT_APPLICATION"] if application.status in ("review", "need_info") else [],
+        required_coverage=assessment.input_data.get("requiredCoverage", 1.25),
         id=application.id,
         company_id=application.company_id,
         product_id=application.product_id,

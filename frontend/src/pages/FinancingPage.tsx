@@ -1,3 +1,4 @@
+import { NextActions } from '../components/NextActions';
 import { useMemo, useState, useRef } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Input } from '@alfalab/core-components/input';
@@ -178,6 +179,7 @@ export function FinancingPage() {
                   <div>
                     <Typography.Title tag="h3" view="small" weight="bold">{item.product.name}</Typography.Title>
                     <p className="recommendation-card__description">{item.product.description}</p>
+                    <p>{item.highlights?.join(' · ')}</p>
                   </div>
                   <div className="offer-numbers">
                     <div><small>Сумма</small><strong>{formatMoney(item.amount ?? amount)}</strong></div>
@@ -185,7 +187,7 @@ export function FinancingPage() {
                     <div><small>Переплата по процентам</small><strong>{formatMoney(item.interestAmount ?? 0)}</strong></div>
                     <div><small>Ставка</small><strong>{item.product.rate}%</strong></div>
                     <div><small>Платёж</small><strong>{formatMoney(item.monthlyPayment)}</strong></div>
-                    <div><small>Покрытие</small><strong className={item.coverage >= 1.25 ? 'positive-text' : 'warning-text'}>{item.coverage.toFixed(2)}×</strong></div>
+                    <div><small>Покрытие</small><strong className={item.coverage >= (item.requiredCoverage ?? 1.25) ? 'positive-text' : 'warning-text'}>{item.coverage.toFixed(2)}×</strong></div>
                   </div>
                   <div className={`explanation-box${item.warning ? ' explanation-box--warning' : ''}`}>
                     <strong>{item.warning ? 'На что обратить внимание' : 'Почему подходит'}</strong>
@@ -194,6 +196,7 @@ export function FinancingPage() {
                       <span>Комфортная сумма по расчёту: <b>{formatMoney(item.recommendedAmount)}</b></span>
                     )}
                   </div>
+                  <NextActions actions={item.actions} />
                   <Button
                     view={index === 0 ? 'accent' : 'secondary'}
                     size={48}

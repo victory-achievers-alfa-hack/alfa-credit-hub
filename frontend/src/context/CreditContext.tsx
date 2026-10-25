@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from './AutoContext';
 import { api, allItems, realtimeUrl } from '../services/api';
-import type { BankDecisionInput, ClientNotification, CompanyProfile, CreateApplicationInput, CreditApplication, CreditProduct, Recommendation, RecommendationInput } from '../types/credit';
+import type { BankDecisionInput, ClientNotification, CompanyProfile, CreateApplicationInput, CreditApplication, CreditProduct, Recommendation, RecommendationInput, NextAction } from '../types/credit';
 
-type Ranked = { product: CreditProduct; offer: { amount: number; termMonths: number; monthlyPayment: number; coverage: number; eligible: boolean; reviewRequired: boolean; interestAmount: number }; evaluation: { reasons: { code: string; message: string }[] }; group: string; rankingReason: string };
+type Ranked = { product: CreditProduct; offer: { amount: number; termMonths: number; monthlyPayment: number; coverage: number; eligible: boolean; reviewRequired: boolean; interestAmount: number }; selectedEvaluation: { actions: NextAction[]; requiredCoverage: number; reasons: { code: string; message: string }[] }; highlights: string[]; evaluation: { reasons: { code: string; message: string }[] }; group: string; rankingReason: string };
 interface CreditContextValue {
   applications: CreditApplication[]; notifications: ClientNotification[]; products: CreditProduct[];
   getCompany: (id?: string) => CompanyProfile | undefined;
@@ -85,8 +85,9 @@ export function CreditProvider({ children }: { children: ReactNode }) {
     const response = await api<{ groups: Record<string, Ranked[]> }>('/recommendations', input);
     return ['requested', 'other_terms', 'reduced_amount', 'requires_action', 'unavailable'].flatMap(group =>
       response.groups[group].map(item => ({ product: item.product, ...item.offer, group,
-        reason: item.evaluation.reasons.map(reason => reason.message).join(' '),
-        rankingReason: item.rankingReason, warning: item.offer.eligible ? undefined : item.evaluation.reasons.map(r => r.message).join(' '),
+        actions: item.selectedEvaluation.actions, highlights: item.highlights, requiredCoverage: item.selectedEvaluation.requiredCoverage,
+        reason: item.selectedEvaluation.reasons.map(reason => reason.message).join(' '),
+        rankingReason: item.rankingReason, warning: item.offer.eligible ? undefined : item.selectedEvaluation.reasons.map(r => r.message).join(' '),
       })));
   }, []);
   if (!currentUser) return <>{children}</>;

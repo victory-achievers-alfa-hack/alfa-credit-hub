@@ -1,3 +1,4 @@
+import { NextActions } from '../components/NextActions';
 import { useEffect, useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Checkbox } from '@alfalab/core-components/checkbox';
@@ -124,6 +125,7 @@ export function ApplicationFormPage() {
                 <div><small>Платёж</small><strong>{formatMoney(recommendation.monthlyPayment)}</strong></div>
               </div>
             </div>
+            <NextActions actions={recommendation.actions} />
             {!recommendation.eligible && (
               <div className="explanation-box explanation-box--warning">
                 <strong>Потребуется решение сотрудника банка</strong>

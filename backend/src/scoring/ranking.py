@@ -7,7 +7,7 @@ from typing import Any, Mapping
 from .financing import assess_financing, _validate_product, _term, _documents_ready
 from .rules import InputError, _money, score_company
 
-RANKING_VERSION = "ranking-v1.1.0"
+RANKING_VERSION = "ranking-v1.2.0"
 
 
 def recommend_financing(
@@ -88,6 +88,8 @@ def recommend_financing(
             item = {
                 "product": deepcopy(dict(product)),
                 "evaluation": result,
+                "selectedEvaluation": assess_financing(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at) if result["alternative"] else result,
+                "highlights": [],
                 "offer": {
                     k: offer[k]
                     for k in (
@@ -110,7 +112,7 @@ def recommend_financing(
             groups[group].append(item)
     for group, items in groups.items():
         if group in ("requires_action", "unavailable"):
-            items.sort(key=lambda x: (x["product"]["id"], x["offer"]["termMonths"]))
+            items.sort(key=lambda x: (not x["selectedEvaluation"]["policyPasses"], -x["offer"]["amount"], x["offer"][metric], x["offer"][secondary], x["product"]["id"], x["offer"]["termMonths"]))
         else:
             items.sort(
                 key=lambda x: (
@@ -122,6 +124,16 @@ def recommend_financing(
                     x["product"]["id"],
                 )
             )
+        comparable = [x for x in items if x["selectedEvaluation"]["policyPasses"]]
+        if comparable:
+            largest_amount = max(x["offer"]["amount"] for x in comparable)
+            comparable = [x for x in comparable if x["offer"]["amount"] == largest_amount]
+        for field, label, best in (("interestAmount", "Меньше переплата при этой сумме", min), ("monthlyPayment", "Меньше платёж при этой сумме", min), ("coverage", "Больше запас по нагрузке при этой сумме", max)):
+            if comparable:
+                value = best(x["offer"][field] for x in comparable)
+                for item in comparable:
+                    if item["offer"][field] == value:
+                        item["highlights"].append(label)
         for rank, item in enumerate(items, 1):
             item["rankInGroup"] = rank
             item["rankingReason"] = (

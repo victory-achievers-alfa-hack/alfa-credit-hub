@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Recommendations API",
-    "version": "0.1.0"
+    "version": "1.2.0"
   },
   "paths": {
     "/api/v1/recommendations": {
@@ -206,6 +206,13 @@
             "title": "Reviewrequired",
             "default": false
           },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/NextAction"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
           "policyPasses": {
             "type": "boolean",
             "title": "Policypasses"
@@ -305,6 +312,7 @@
           "interestAmount",
           "coverage",
           "eligible",
+          "actions",
           "policyPasses",
           "requiredCoverage",
           "amountLimit",
@@ -423,6 +431,64 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "NextAction": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "termMonths": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Termmonths"
+          },
+          "documentKind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documentkind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "message"
+        ],
+        "title": "NextAction"
       },
       "Offer": {
         "properties": {
@@ -588,6 +654,16 @@
           "evaluation": {
             "$ref": "#/components/schemas/Evaluation"
           },
+          "selectedEvaluation": {
+            "$ref": "#/components/schemas/Evaluation"
+          },
+          "highlights": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Highlights"
+          },
           "offer": {
             "$ref": "#/components/schemas/Offer"
           },
@@ -626,6 +702,8 @@
         "required": [
           "product",
           "evaluation",
+          "selectedEvaluation",
+          "highlights",
           "offer",
           "termChanged",
           "amountShortfall",

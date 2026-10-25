@@ -336,6 +336,6 @@ def test_medium_score_bank_review_requires_reason_and_persists_audit(client: Tes
         decision_audit = next(r for r in records if r.record.get("applicationId") == application_id)
         assert decision_audit.record["result"]["reviewRequired"]
         assert decision_audit.record["result"]["policyPasses"]
-        assert decision_audit.record["result"]["policyVersion"] == "financing-v1.1.0"
+        assert decision_audit.record["result"]["policyVersion"] == "financing-v1.2.0"
     finally:
         session_generator.close()

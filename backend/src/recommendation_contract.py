@@ -77,7 +77,17 @@ class Check(Contract):
     state: Literal["success", "warning", "error"]
 
 
+class NextAction(Contract):
+    code: str
+    title: str
+    message: str
+    amount: Money | None = None
+    termMonths: int | None = None
+    documentKind: str | None = None
+
+
 class Evaluation(Offer):
+    actions: list[NextAction]
     policyPasses: bool
     requiredCoverage: float
     amountLimit: Money
@@ -116,6 +126,8 @@ class Product(Contract):
 class RankedOffer(Contract):
     product: Product
     evaluation: Evaluation
+    selectedEvaluation: Evaluation
+    highlights: list[str]
     offer: Offer
     termChanged: bool
     amountShortfall: Money

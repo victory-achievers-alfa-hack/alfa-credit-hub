@@ -1,3 +1,4 @@
+import { NextActions } from '../components/NextActions';
 import { useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Checkbox } from '@alfalab/core-components/checkbox';
@@ -170,6 +171,7 @@ export function ClientApplicationPage() {
             </div>
             <span className="score-chip">{application.scoring.score}/100</span>
           </div>
+          <NextActions actions={application.actions} />
           <div className="check-list">
             {application.checks.map((check) => (
               <div className="check-row" key={check.id}>

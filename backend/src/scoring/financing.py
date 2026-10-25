@@ -8,8 +8,9 @@ from datetime import datetime
 from typing import Any, Mapping
 
 from .rules import InputError, _money, score_company
+from .actions import next_actions
 
-POLICY_VERSION = "financing-v1.1.0"
+POLICY_VERSION = "financing-v1.2.0"
 MIN_COVERAGE = Decimal("1.25")
 MIN_SCORE = 70
 REVIEW_MIN_SCORE = 50
@@ -287,7 +288,7 @@ def assess_financing(
             "state": "success" if covered else "warning",
         },
     ]
-    return {
+    result = {
         "productId": product["id"],
         "purpose": purpose,
         **quote,
@@ -306,3 +307,6 @@ def assess_financing(
         "policyVersion": POLICY_VERSION,
         "calculatedAt": scoring["calculatedAt"],
     }
+
+    result["actions"] = next_actions(company, result)
+    return result
