@@ -1,3 +1,4 @@
+import { StressPanel } from '../components/StressPanel';
 import { NextActions } from '../components/NextActions';
 import { useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
@@ -172,6 +173,7 @@ export function ClientApplicationPage() {
             <span className="score-chip">{application.scoring.score}/100</span>
           </div>
           <NextActions actions={application.actions} />
+                <StressPanel stress={application.stress} snapshot />
           <div className="check-list">
             {application.checks.map((check) => (
               <div className="check-row" key={check.id}>

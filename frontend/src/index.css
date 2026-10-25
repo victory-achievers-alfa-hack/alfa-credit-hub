@@ -3339,3 +3339,11 @@ a:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+
+.stress-panel summary { cursor: pointer; font-weight: 600; }
+.stress-rows { margin: 12px 0; }
+.stress-row { padding: 10px 0; border-bottom: 1px solid #dfe3e8; }
+.stress-row dt { font-weight: 600; }
+.stress-row dd { margin: 4px 0 0; }
+.stress-row dd span { display: block; margin-top: 4px; }

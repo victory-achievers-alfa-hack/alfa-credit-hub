@@ -1,3 +1,4 @@
+import { StressPanel } from '../components/StressPanel';
 import { NextActions } from '../components/NextActions';
 import { useMemo, useState, useRef } from 'react';
 import { Button } from '@alfalab/core-components/button';
@@ -197,6 +198,7 @@ export function FinancingPage() {
                     )}
                   </div>
                   <NextActions actions={item.actions} />
+                  <StressPanel stress={item.stress} />
                   <Button
                     view={index === 0 ? 'accent' : 'secondary'}
                     size={48}

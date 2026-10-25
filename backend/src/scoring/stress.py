@@ -4,10 +4,10 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Mapping
 
-from .financing import assess_financing, MIN_COVERAGE
+from .financing import assess_financing
 from .rules import _money
 
-STRESS_VERSION = "stress-v1.0.0"
+STRESS_VERSION = "stress-v1.1.0"
 
 
 def stress_financing(
@@ -36,7 +36,8 @@ def stress_financing(
     expenses = _money(company, "monthlyExpenses")
     existing = _money(company, "existingPayments")
     payment = Decimal(str(baseline["monthlyPayment"]))
-    required = expenses + MIN_COVERAGE * (existing + payment)
+    threshold = Decimal(str(baseline["requiredCoverage"]))
+    required = expenses + threshold * (existing + payment)
     headroom = revenue - required
     scenarios = []
     for decline in (0, 10, 20, 30):
@@ -71,7 +72,7 @@ def stress_financing(
             "Сумма, ставка, срок и нефинансовые данные не меняются.",
             "Это сценарии чувствительности, не прогноз и не вероятность дефолта.",
         ],
-        "coverageThreshold": float(MIN_COVERAGE),
+        "coverageThreshold": float(threshold),
         "requiredMonthlyRevenue": float(required),
         "revenueHeadroom": float(headroom),
         "maxRevenueDeclinePercent": float(headroom / revenue * 100)
@@ -81,4 +82,26 @@ def stress_financing(
         "thresholdExplanation": "Порог относится только к покрытию. На границе покрытие проходит; "
         "скоринг, документы и другие ограничения проверяются отдельно.",
         "scenarios": scenarios,
+    }
+
+
+def stress_summary(company, product, *, purpose, amount, term_months, evaluated_at):
+    """Compact audited API representation; no recursive evaluations in payloads."""
+    result = stress_financing(company, product, purpose=purpose, amount=amount,
+                              term_months=term_months, evaluated_at=evaluated_at)
+    baseline = result["scenarios"][0]["evaluation"]
+    return {key: value for key, value in result.items() if key != "scenarios"} | {
+        "amount": baseline["amount"], "termMonths": term_months, "rate": baseline["rate"],
+        "policyVersion": baseline["policyVersion"],
+        "scenarios": [{
+            "revenueDeclinePercent": row["revenueDeclinePercent"],
+            "monthlyRevenue": row["monthlyRevenue"],
+            "coverage": row["evaluation"]["coverage"],
+            "coveragePasses": row["coveragePasses"],
+            "score": row["evaluation"]["scoring"]["score"],
+            "policyPasses": row["evaluation"]["policyPasses"],
+            "requiredCoverage": row["evaluation"]["requiredCoverage"],
+            "reviewRequired": row["evaluation"]["reviewRequired"],
+            "assessment": row["evaluation"]["assessment"],
+        } for row in result["scenarios"]],
     }

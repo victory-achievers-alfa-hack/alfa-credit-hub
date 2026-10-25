@@ -123,7 +123,37 @@ class Product(Contract):
     accent: str | None = None
 
 
+class StressScenario(Contract):
+    revenueDeclinePercent: int
+    monthlyRevenue: Money
+    coverage: float
+    coveragePasses: bool
+    score: int
+    policyPasses: bool
+    requiredCoverage: float
+    reviewRequired: bool
+    assessment: str
+
+
+class StressSummary(Contract):
+    stressVersion: str
+    calculatedAt: AwareDatetime
+    assumptions: list[str]
+    coverageThreshold: float
+    requiredMonthlyRevenue: Money
+    revenueHeadroom: float
+    maxRevenueDeclinePercent: float | None
+    coverageStatus: Literal["passes", "below_threshold"]
+    thresholdExplanation: str
+    amount: Money
+    termMonths: int
+    rate: Money
+    policyVersion: str
+    scenarios: list[StressScenario]
+
+
 class RankedOffer(Contract):
+    stress: StressSummary
     product: Product
     evaluation: Evaluation
     selectedEvaluation: Evaluation

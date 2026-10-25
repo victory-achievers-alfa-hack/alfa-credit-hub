@@ -1,3 +1,4 @@
+import { StressPanel } from '../components/StressPanel';
 import { NextActions } from '../components/NextActions';
 import { useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
@@ -106,6 +107,7 @@ export function BankApplicationPage() {
                 </Typography.Title>
                 <p>{application.scoring.summary}</p>
                 <NextActions actions={application.actions} />
+                <StressPanel stress={application.stress} snapshot />
                 {company.scoringScore >= 50 && company.scoringScore < 70 && <p>Текущий профиль требует рассмотрения: покрытие от 1,5×, сумма до 50% месячной выручки и обязательное обоснование сотрудника. Ограничения проверяет сервер.</p>}
               </div>
             </div>
@@ -190,7 +192,7 @@ export function BankApplicationPage() {
               )}
 
               <Input
-                label={decision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
+                label={company.scoringScore >= 50 && company.scoringScore < 70 && ['approve', 'alternative'].includes(decision) ? 'Обоснование решения (обязательно, от 20 символов)' : decision === 'approve' ? 'Комментарий клиенту (необязательно)' : 'Причина решения'}
                 labelView="outer"
                 size={56}
                 block

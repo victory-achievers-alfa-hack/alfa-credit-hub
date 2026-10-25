@@ -292,11 +292,15 @@ def test_recommendation_audit_to_new_application_disbursement(client: TestClient
     assert created.status_code == 200, created.text
     application = created.json()
     assert application["scoring"]["modelVersion"] == "rules-v1.0.0"
+    assert application["stress"]["amount"] == application["requestedAmount"]
+    assert not any(action["code"] == "SUBMIT_APPLICATION" for action in application["actions"])
+    assert [r["revenueDeclinePercent"] for r in application["stress"]["scenarios"]] == [0, 10, 20, 30]
     application_id = application["id"]
     bank_token = login(client, "bank@demo.ru")
     approved = client.post(f"/api/v1/bank/applications/{application_id}/decision",
         headers={"Authorization": f"Bearer {bank_token}"}, json={"kind": "approve"})
     assert approved.status_code == 200, approved.text
+    assert approved.json()["actions"] == []
     for endpoint, expected in (("accept", "sign"), ("sign", "ready"), ("disburse", "disbursed")):
         response = client.post(f"/api/v1/applications/{application_id}/{endpoint}",
             headers=headers, json={"accepted": True} if endpoint == "accept" else None)
@@ -336,6 +340,7 @@ def test_medium_score_bank_review_requires_reason_and_persists_audit(client: Tes
         decision_audit = next(r for r in records if r.record.get("applicationId") == application_id)
         assert decision_audit.record["result"]["reviewRequired"]
         assert decision_audit.record["result"]["policyPasses"]
+        assert decision_audit.record["result"]["stress"]["coverageThreshold"] == 1.5
         assert decision_audit.record["result"]["policyVersion"] == "financing-v1.2.0"
     finally:
         session_generator.close()

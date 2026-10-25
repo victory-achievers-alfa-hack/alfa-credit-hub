@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from .financing import assess_financing, _validate_product, _term, _documents_ready
 from .rules import InputError, _money, score_company
+from .stress import stress_summary
 
 RANKING_VERSION = "ranking-v1.2.0"
 
@@ -90,6 +91,7 @@ def recommend_financing(
                 "evaluation": result,
                 "selectedEvaluation": assess_financing(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at) if result["alternative"] else result,
                 "highlights": [],
+                "stress": stress_summary(company, product, purpose=purpose, amount=offer["amount"], term_months=term, evaluated_at=evaluated_at),
                 "offer": {
                     k: offer[k]
                     for k in (

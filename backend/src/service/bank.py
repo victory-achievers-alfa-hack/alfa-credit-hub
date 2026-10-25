@@ -15,6 +15,7 @@ from backend.src.service import profile as profile_service
 from backend.src.service.application_state import ensure_application_transition
 from backend.src.service.realtime import realtime_connections
 from backend.src.scoring import assess_financing, InputError
+from backend.src.scoring.stress import stress_summary
 
 
 def get_bank_applications(
@@ -112,6 +113,7 @@ async def make_bank_decision(
             raise HTTPException(409, detail={"code": "OFFER_NOT_ELIGIBLE", "message": "Предложенные условия не проходят текущие проверки. " + " ".join(r["message"] for r in assessment["reasons"])})
         if assessment["reviewRequired"] and len((request.comment or "").strip()) < 20:
             raise HTTPException(409, detail={"code": "REVIEW_JUSTIFICATION_REQUIRED", "message": "Для балла 50–69 укажите обоснование решения: не менее 20 символов."})
+        assessment["stress"] = stress_summary(applications_service._company_snapshot(application.company), product_snapshot, purpose=application.purpose, amount=amount, term_months=term_months, evaluated_at=datetime.fromisoformat(assessment["calculatedAt"].replace("Z", "+00:00")))
         comment = request.comment.strip() if request.comment else None
         title = (
             "Заявка одобрена"

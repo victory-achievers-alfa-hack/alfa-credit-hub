@@ -1,3 +1,4 @@
+import { StressPanel } from '../components/StressPanel';
 import { NextActions } from '../components/NextActions';
 import { useEffect, useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
@@ -126,6 +127,7 @@ export function ApplicationFormPage() {
               </div>
             </div>
             <NextActions actions={recommendation.actions} />
+            <StressPanel stress={recommendation.stress} />
             {!recommendation.eligible && (
               <div className="explanation-box explanation-box--warning">
                 <strong>Потребуется решение сотрудника банка</strong>

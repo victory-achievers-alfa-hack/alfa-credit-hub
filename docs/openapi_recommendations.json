@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Recommendations API",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "paths": {
     "/api/v1/recommendations": {
@@ -648,6 +648,9 @@
       },
       "RankedOffer": {
         "properties": {
+          "stress": {
+            "$ref": "#/components/schemas/StressSummary"
+          },
           "product": {
             "$ref": "#/components/schemas/Product"
           },
@@ -700,6 +703,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "stress",
           "product",
           "evaluation",
           "selectedEvaluation",
@@ -907,6 +911,161 @@
           "eventProbability"
         ],
         "title": "Scoring"
+      },
+      "StressScenario": {
+        "properties": {
+          "revenueDeclinePercent": {
+            "type": "integer",
+            "title": "Revenuedeclinepercent"
+          },
+          "monthlyRevenue": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Monthlyrevenue"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "coveragePasses": {
+            "type": "boolean",
+            "title": "Coveragepasses"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "policyPasses": {
+            "type": "boolean",
+            "title": "Policypasses"
+          },
+          "requiredCoverage": {
+            "type": "number",
+            "title": "Requiredcoverage"
+          },
+          "reviewRequired": {
+            "type": "boolean",
+            "title": "Reviewrequired"
+          },
+          "assessment": {
+            "type": "string",
+            "title": "Assessment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revenueDeclinePercent",
+          "monthlyRevenue",
+          "coverage",
+          "coveragePasses",
+          "score",
+          "policyPasses",
+          "requiredCoverage",
+          "reviewRequired",
+          "assessment"
+        ],
+        "title": "StressScenario"
+      },
+      "StressSummary": {
+        "properties": {
+          "stressVersion": {
+            "type": "string",
+            "title": "Stressversion"
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Calculatedat"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "coverageThreshold": {
+            "type": "number",
+            "title": "Coveragethreshold"
+          },
+          "requiredMonthlyRevenue": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Requiredmonthlyrevenue"
+          },
+          "revenueHeadroom": {
+            "type": "number",
+            "title": "Revenueheadroom"
+          },
+          "maxRevenueDeclinePercent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxrevenuedeclinepercent"
+          },
+          "coverageStatus": {
+            "type": "string",
+            "enum": [
+              "passes",
+              "below_threshold"
+            ],
+            "title": "Coveragestatus"
+          },
+          "thresholdExplanation": {
+            "type": "string",
+            "title": "Thresholdexplanation"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amount"
+          },
+          "termMonths": {
+            "type": "integer",
+            "title": "Termmonths"
+          },
+          "rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Rate"
+          },
+          "policyVersion": {
+            "type": "string",
+            "title": "Policyversion"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/StressScenario"
+            },
+            "type": "array",
+            "title": "Scenarios"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stressVersion",
+          "calculatedAt",
+          "assumptions",
+          "coverageThreshold",
+          "requiredMonthlyRevenue",
+          "revenueHeadroom",
+          "maxRevenueDeclinePercent",
+          "coverageStatus",
+          "thresholdExplanation",
+          "amount",
+          "termMonths",
+          "rate",
+          "policyVersion",
+          "scenarios"
+        ],
+        "title": "StressSummary"
       },
       "ValidationError": {
         "properties": {

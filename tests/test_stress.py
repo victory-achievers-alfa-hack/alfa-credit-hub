@@ -53,3 +53,38 @@ class StressTests(unittest.TestCase):
         scores = [s["evaluation"]["scoring"]["score"] for s in result["scenarios"]]
         self.assertEqual(scores, sorted(scores, reverse=True))
         json.dumps(result, allow_nan=False)
+
+
+class StressReviewIntegrationTests(unittest.TestCase):
+    def test_review_uses_initial_stricter_coverage_threshold(self):
+        from test_review_policy import MEDIUM
+        result = stress(MEDIUM, amount=100000)
+        baseline = result["scenarios"][0]["evaluation"]
+        self.assertTrue(baseline["reviewRequired"])
+        self.assertEqual(result["coverageThreshold"], 1.5)
+        from decimal import Decimal
+        expected = Decimal(str(MEDIUM["monthlyExpenses"])) + Decimal("1.5") * (Decimal(str(MEDIUM["existingPayments"])) + Decimal(str(baseline["monthlyPayment"])))
+        self.assertEqual(result["requiredMonthlyRevenue"], float(expected))
+        self.assertTrue(result["scenarios"][0]["coveragePasses"])
+        self.assertFalse(result["scenarios"][1]["coveragePasses"])
+
+    def test_compact_stress_matches_detailed_calculation(self):
+        from backend.src.scoring.stress import stress_summary
+        summary = stress_summary(CAFE, PRODUCT, purpose="goods", amount=800000,
+                                 term_months=24, evaluated_at=AT)
+        detailed = stress()
+        for compact, full in zip(summary["scenarios"], detailed["scenarios"]):
+            self.assertEqual(compact["coverage"], full["evaluation"]["coverage"])
+            self.assertEqual(compact["policyPasses"], full["evaluation"]["policyPasses"])
+        self.assertEqual(summary["amount"], 800000)
+        self.assertEqual(summary["termMonths"], 24)
+        json.dumps(summary, allow_nan=False)
+
+    def test_recommendation_stress_is_for_selected_alternative(self):
+        from backend.src.scoring import recommend_financing
+        ranked = recommend_financing(CITY, [PRODUCT], purpose="goods", amount=800000,
+                                    term_months=24, evaluated_at=AT)
+        for item in ranked["groups"]["reduced_amount"]:
+            self.assertEqual(item["stress"]["amount"], item["offer"]["amount"])
+            self.assertEqual(item["stress"]["termMonths"], item["offer"]["termMonths"])
+            self.assertEqual(item["stress"]["scenarios"][0]["coverage"], item["offer"]["coverage"])

@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from .base import ApiSchema, JsonDecimal
-from backend.src.recommendation_contract import NextAction
+from backend.src.recommendation_contract import NextAction, StressSummary
 from .enums import ApplicationStatus, CreditGoal
 
 
@@ -86,6 +86,7 @@ class ApplicationListItemResponse(ApiSchema):
 
 
 class ApplicationDetailResponse(ApiSchema):
+    stress: StressSummary | None = None
     actions: list[NextAction] = Field(default_factory=list)
     required_coverage: float = 1.25
     id: str
