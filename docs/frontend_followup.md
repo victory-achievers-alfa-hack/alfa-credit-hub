@@ -19,4 +19,4 @@
 
 Блок «Расчёт прозрачный» справа существовал до нашей интеграции: его текст и расположение в этом проходе не менялись. В прежних локальных коммитах уже добавлены NextActions и StressPanel — это наши элементы для совместного пересмотра с фронтендером.
 
-Актуальные DTO — docs/openapi_recommendations.json и backend/src/recommendation_contract.py. Числовые правила — docs/financing_contract.md; уточнения — ds_response_refinements.md и stress_contract.md.
+Актуальные DTO — runtime /openapi.json и backend/src/recommendation_contract.py. Правила и уточнения собраны в docs/CONTRACTS.md, разделы 3, 4 и 7. Отдельные старые технические документы объединены в этот контракт вслед за обновлением main.

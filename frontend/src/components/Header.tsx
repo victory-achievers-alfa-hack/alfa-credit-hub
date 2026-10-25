@@ -19,7 +19,7 @@ const bankLinks = [
 
 export function Header() {
   const { currentUser, logout } = useAuth();
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useCredit();
+  const { notifications, getCompany, markNotificationRead, markAllNotificationsRead } = useCredit();
   const navigate = useNavigate();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -28,20 +28,20 @@ export function Header() {
   const links = currentUser.role === 'bank' ? bankLinks : clientLinks;
   const homePath = currentUser.role === 'bank' ? '/bank' : '/client';
   const profilePath = currentUser.role === 'bank' ? '/bank' : '/client/business';
+  const company = currentUser.role === 'client' ? getCompany(currentUser.companyId) : undefined;
   const clientNotifications = currentUser.role === 'client'
     ? notifications.filter((notification) => notification.companyId === currentUser.companyId)
     : [];
   const unreadCount = clientNotifications.filter((notification) => !notification.read).length;
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    if (await logout()) navigate('/login');
   };
 
-  const openNotification = (notificationId: string, applicationId: string) => {
-    markNotificationRead(notificationId);
+  const openNotification = (notificationId: string, applicationId: string | null) => {
+    void markNotificationRead(notificationId);
     setNotificationsOpen(false);
-    navigate(`/client/applications/${applicationId}`);
+    if (applicationId) navigate(`/client/applications/${applicationId}`);
   };
 
   return (
@@ -97,7 +97,7 @@ export function Header() {
                       <small>{unreadCount > 0 ? `${unreadCount} новых` : 'Всё прочитано'}</small>
                     </div>
                     {unreadCount > 0 && currentUser.companyId && (
-                      <button type="button" onClick={() => markAllNotificationsRead(currentUser.companyId ?? '')}>
+                      <button type="button" onClick={() => void markAllNotificationsRead(currentUser.companyId ?? '')}>
                         Прочитать все
                       </button>
                     )}
@@ -145,7 +145,7 @@ export function Header() {
                 {currentUser.name}
               </Typography.Text>
               <Typography.Text view="secondary-small" color="secondary" tag="div">
-                {currentUser.companyName}
+                {company?.name ?? currentUser.companyName ?? (currentUser.role === 'bank' ? 'Кредитный департамент' : 'Профиль компании')}
               </Typography.Text>
             </span>
             <span className={`avatar${currentUser.role === 'bank' ? ' avatar--bank' : ''}`}>

@@ -8,7 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ApplicationStatusBadge } from '../components/ApplicationStatusBadge';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
-import { PURPOSE_LABELS } from '../data/mockData';
+import { PURPOSE_LABELS } from '../constants';
 import type { ApplicationStatus } from '../types/credit';
 import { formatDateTime, formatMoney, formatPercent } from '../utils/format';
 
@@ -20,6 +20,10 @@ export function ClientApplicationPage() {
   const { currentUser } = useAuth();
   const { getCompany, applications, respondToInfoRequest, acceptOffer, signApplication, disburseApplication } = useCredit();
   const [signConfirmed, setSignConfirmed] = useState(false);
+  const [infoComment, setInfoComment] = useState('');
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [infoError, setInfoError] = useState('');
+  const [submittingInfo, setSubmittingInfo] = useState(false);
   const application = applications.find((candidate) => candidate.id === id && candidate.companyId === currentUser?.companyId);
   const company = getCompany(application?.companyId);
 
@@ -37,6 +41,25 @@ export function ClientApplicationPage() {
   }
 
   const currentProgressIndex = progressStatuses.indexOf(application.status);
+  const rejectionEvent = [...application.events].reverse().find((event) => event.status === 'rejected');
+  const submitAdditionalInfo = async () => {
+    const comment = infoComment.trim();
+    if (!comment) {
+      setInfoError('Опишите, какие сведения вы уточнили');
+      return;
+    }
+    setSubmittingInfo(true);
+    const result = await respondToInfoRequest(application.id, { comment, documentIds: selectedDocumentIds });
+    setSubmittingInfo(false);
+    if (!result.success) setInfoError(result.error ?? 'Не удалось отправить сведения');
+    else setInfoError('');
+  };
+
+  const toggleDocument = (documentId: string, checked: boolean) => {
+    setSelectedDocumentIds((current) => checked
+      ? [...new Set([...current, documentId])]
+      : current.filter((id) => id !== documentId));
+  };
 
   return (
     <div className="page-shell page-shell--narrow">
@@ -63,13 +86,39 @@ export function ClientApplicationPage() {
       )}
 
       {application.status === 'need_info' && (
-        <section className="action-panel action-panel--warning">
-          <div>
+        <section className="action-panel action-panel--warning additional-info-panel">
+          <div className="action-panel__content">
             <div className="eyebrow">Нужно ваше действие</div>
             <Typography.Title tag="h2" view="small" weight="bold">Банк запросил сведения</Typography.Title>
             <p>{application.infoRequest}</p>
+            <label className="additional-info-panel__field">
+              <span>Ответ банку</span>
+              <textarea
+                value={infoComment}
+                maxLength={2000}
+                rows={4}
+                placeholder="Опишите уточнения и приложенные документы"
+                onChange={(event) => { setInfoComment(event.target.value); setInfoError(''); }}
+                aria-invalid={Boolean(infoError)}
+              />
+            </label>
+            <div className="additional-info-panel__documents">
+              <strong>Приложить документы из профиля</strong>
+              {company.documents.map((document) => (
+                <Checkbox
+                  key={document.id}
+                  size={24}
+                  checked={selectedDocumentIds.includes(document.id)}
+                  onChange={(_, payload) => toggleDocument(document.id, payload.checked)}
+                  label={`${document.name} — ${document.description}`}
+                />
+              ))}
+            </div>
+            {infoError && <p className="additional-info-panel__error" role="alert">{infoError}</p>}
           </div>
-          <Button view="accent" size={48} onClick={() => respondToInfoRequest(application.id)}>Подтвердить сведения</Button>
+          <Button view="accent" size={48} disabled={submittingInfo} onClick={() => void submitAdditionalInfo()}>
+            {submittingInfo ? 'Отправляем…' : 'Отправить сведения'}
+          </Button>
         </section>
       )}
 
@@ -140,7 +189,7 @@ export function ClientApplicationPage() {
           <div className="action-panel__content">
             <div className="eyebrow">Заявка завершена</div>
             <Typography.Title tag="h2" view="small" weight="bold">Предложение отклонено</Typography.Title>
-            <p>{application.bankComment ?? 'По заявке принято отрицательное решение.'}</p>
+            <p>{rejectionEvent?.description ?? application.bankComment ?? 'По заявке принято отрицательное решение.'}</p>
           </div>
           <Button view="secondary" size={48} onClick={() => navigate('/client/financing')}>Новый расчёт</Button>
         </section>

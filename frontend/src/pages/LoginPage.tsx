@@ -2,21 +2,32 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Input } from '@alfalab/core-components/input';
 import { Typography } from '@alfalab/core-components/typography';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
-import { DEMO_USERS } from '../data/mockData';
+import { DEMO_USERS } from '../constants';
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 export function LoginPage() {
   const { currentUser, login, loginAs } = useAuth();
+  const location = useLocation();
   const [email, setEmail] = useState('client@demo.ru');
   const [password, setPassword] = useState('123456');
   const [emailError, setEmailError] = useState('');
   const [authError, setAuthError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   if (currentUser) {
-    return <Navigate to={currentUser.role === 'bank' ? '/bank' : '/client'} replace />;
+    const requestedPath = typeof (location.state as { from?: unknown } | null)?.from === 'string'
+      ? (location.state as { from: string }).from
+      : undefined;
+    const rolePrefix = currentUser.role === 'bank' ? '/bank' : '/client';
+    const requestedPathIsSafe = requestedPath
+      && !requestedPath.includes('\\')
+      && !requestedPath.startsWith('//')
+      && (requestedPath === rolePrefix || requestedPath.startsWith(`${rolePrefix}/`));
+    const destination = requestedPathIsSafe ? requestedPath : rolePrefix;
+    return <Navigate to={destination} replace />;
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -27,7 +38,9 @@ export function LoginPage() {
       return;
     }
 
+    setSubmitting(true);
     const result = await login(email, password);
+    setSubmitting(false);
     if (!result.success) {
       setAuthError(result.message ?? 'Не удалось войти');
       return;
@@ -37,9 +50,12 @@ export function LoginPage() {
   };
 
   const handleQuickLogin = async (userId: string) => {
+    if (submitting) return;
+    setSubmitting(true);
+    setAuthError('');
     const result = await loginAs(userId);
-    if (!result.success) { setAuthError(result.message ?? 'Не удалось войти'); return; }
-
+    setSubmitting(false);
+    if (!result.success) setAuthError(result.message ?? 'Не удалось войти');
   };
 
   return (
@@ -110,8 +126,8 @@ export function LoginPage() {
               onChange={(_, payload) => { setPassword(payload.value); setAuthError(''); }}
               error={authError || false}
             />
-            <Button type="submit" view="accent" size={56} block>
-              Войти
+            <Button type="submit" view="accent" size={56} block disabled={submitting}>
+              {submitting ? 'Входим…' : 'Войти'}
             </Button>
           </form>
 
@@ -123,7 +139,8 @@ export function LoginPage() {
                 type="button"
                 className="demo-user"
                 key={user.id}
-                onClick={() => handleQuickLogin(user.id)}
+                onClick={() => void handleQuickLogin(user.id)}
+                disabled={submitting}
               >
                 <span className={`avatar${user.role === 'bank' ? ' avatar--bank' : ''}`}>{user.avatarText}</span>
                 <span className="demo-user__copy">

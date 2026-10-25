@@ -16,10 +16,9 @@ export type CheckState = 'success' | 'warning' | 'error';
 export interface UserProfile {
   id: string;
   email: string;
-  password?: string;
   role: UserRole;
   name: string;
-  companyId?: string;
+  companyId?: string | null;
   companyName?: string;
   inn?: string;
   avatarText: string;
@@ -29,8 +28,8 @@ export type NotificationTone = 'info' | 'warning' | 'positive' | 'negative';
 
 export interface ClientNotification {
   id: string;
-  companyId: string;
-  applicationId: string;
+  companyId: string | null;
+  applicationId: string | null;
   title: string;
   message: string;
   tone: NotificationTone;
@@ -42,7 +41,7 @@ export interface CompanyDocument {
   id: string;
   name: string;
   description: string;
-  status: 'ready' | 'attention';
+  status: 'pending' | 'ready' | 'attention' | 'verified' | 'rejected';
   updatedAt: string;
 }
 
@@ -77,8 +76,31 @@ export interface CreditProduct {
   accent: string;
 }
 
+export type RecommendationGroup =
+  | 'requested'
+  | 'other_terms'
+  | 'reduced_amount'
+  | 'requires_action'
+  | 'unavailable';
+
+export type RecommendationAssessment =
+  | 'eligible'
+  | 'alternative'
+  | 'need_info'
+  | 'manual_review'
+  | 'blocked'
+  | 'unavailable';
+
 export interface NextAction {
-  code: string; title: string; message: string; amount?: number | null; termMonths?: number | null; documentKind?: string | null; minimumAmount?: number | null; maximumAmount?: number | null; allowedTerms?: number[] | null;
+  code: string;
+  title: string;
+  message: string;
+  amount?: number | null;
+  termMonths?: number | null;
+  documentKind?: string | null;
+  minimumAmount?: number | null;
+  maximumAmount?: number | null;
+  allowedTerms?: number[] | null;
 }
 
 export interface Recommendation {
@@ -88,11 +110,15 @@ export interface Recommendation {
   highlights?: string[];
   requiredCoverage?: number;
   reviewRequired?: boolean;
-  amount?: number;
-  termMonths?: number;
-  interestAmount?: number;
-  group?: string;
-  rankingReason?: string;
+  evaluationId?: string;
+  rankingVersion?: string;
+  amount: number;
+  termMonths: number;
+  rate: number;
+  interestAmount: number;
+  group: RecommendationGroup;
+  assessment?: RecommendationAssessment;
+  rankingReason: string;
   product: CreditProduct;
   monthlyPayment: number;
   coverage: number;
@@ -164,9 +190,9 @@ export interface CreditApplication {
   status: ApplicationStatus;
   scoring: ScoringResult;
   checks: ApplicationCheck[];
-  offer?: LoanOffer;
-  bankComment?: string;
-  infoRequest?: string;
+  offer?: LoanOffer | null;
+  bankComment?: string | null;
+  infoRequest?: string | null;
   createdAt: string;
   updatedAt: string;
   events: ApplicationEvent[];

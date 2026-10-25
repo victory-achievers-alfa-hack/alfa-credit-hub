@@ -1,5 +1,9 @@
 export function formatMoney(value: number): string {
-  return `${Math.round(value).toLocaleString('ru-RU')} ₽`;
+  const fractionDigits = Number.isInteger(value) ? 0 : 2;
+  return `${value.toLocaleString('ru-RU', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })} ₽`;
 }
 
 export function formatDate(value: string): string {
