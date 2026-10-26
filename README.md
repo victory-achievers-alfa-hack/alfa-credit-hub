@@ -40,13 +40,12 @@
 | Единый запуск всех компонентов в Docker, cloud-native (стр. 7) | [Compose](docker-compose.yml), [backend Dockerfile](backend/Dockerfile), [frontend Dockerfile](frontend/Dockerfile) есть. Чистый запуск не проверен; однопроцессный realtime и SQLite не подтверждают production-масштабирование |
 | Версии окружения и зависимостей (стр. 7) | Есть: [.python-version](.python-version), [uv.lock](uv.lock), [package-lock.json](frontend/package-lock.json); требования Node указаны ниже |
 | Документация и сценарии (стр. 7) | Есть: README, [архитектура](#возможности-и-архитектура), [состояния](#статусы-заявки), [ER и сценарии](docs/REVIEW_GUIDE.md), [API](docs/CONTRACTS.md), Swagger/OpenAPI, [коллекция](docs/API_EXAMPLES.http), [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md) |
-| Показ изменения новостной ленты под клиента (стр. 7) | **Не выполнено:** текущие новости общие и статические. Для полной демонстрации по кейсу нужны персонализация, объяснение релевантности и содержимое новости |
 | Облачный стенд (рекомендация, стр. 7) | Публичный адрес и его доступность не подтверждены; место для ссылки оставлено ниже и в презентации |
 
 ## Материалы и ссылки для сдачи
 
 - **Репозиторий:** https://github.com/victory-achievers-alfa-hack/alfa-credit-hub
-- **Основной сайт / облачное демо:** **[ВСТАВИТЬ HTTPS-ССЫЛКУ НА ОСНОВНОЙ САЙТ]**. Это текстовое поле, а не готовый адрес. Локальные URL приведены в быстром старте.
+- **Основной сайт / облачное демо:** **[https://benchmark-entire-lawsuit-hull.trycloudflare.com]**. Это текстовое поле, а не готовый адрес. Локальные URL приведены в быстром старте.
 - **Инструкция для эксперта:** [docs/REVIEW_GUIDE.md](docs/REVIEW_GUIDE.md).
 - **Технические контракты:** [docs/CONTRACTS.md](docs/CONTRACTS.md).
 - **Коллекция запросов двух ролей:** [docs/API_EXAMPLES.http](docs/API_EXAMPLES.http).
