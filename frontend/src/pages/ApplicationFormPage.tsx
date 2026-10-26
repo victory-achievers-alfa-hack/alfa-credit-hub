@@ -1,5 +1,4 @@
-import { StressPanel } from '../components/StressPanel';
-import { NextActions } from '../components/NextActions';
+
 import { useEffect, useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Checkbox } from '@alfalab/core-components/checkbox';
@@ -139,8 +138,7 @@ export function ApplicationFormPage() {
               </div>
             </div>
             <p className="scoring-calculated-at">Расчёт выполнен {formatDateTime(recommendation.selectedEvaluation.calculatedAt)}</p>
-            <NextActions actions={recommendation.selectedEvaluation.actions} />
-            <StressPanel stress={recommendation.stress} />
+
             {recommendation.selectedEvaluation.reviewRequired && (
               <div className="explanation-box explanation-box--warning">
                 <strong>Потребуется решение сотрудника банка</strong>

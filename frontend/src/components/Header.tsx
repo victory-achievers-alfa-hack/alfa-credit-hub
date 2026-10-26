@@ -18,10 +18,11 @@ const bankLinks = [
 ];
 
 export function Header() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, authError } = useAuth();
   const { notifications, getCompany, markNotificationRead, markAllNotificationsRead } = useCredit();
   const navigate = useNavigate();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const notificationsTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -59,7 +60,13 @@ export function Header() {
   const unreadCount = clientNotifications.filter((notification) => !notification.read).length;
 
   const handleLogout = async () => {
-    if (await logout()) navigate('/login');
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      if (await logout()) navigate('/login', { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const openNotification = (notificationId: string, applicationId: string | null) => {
@@ -180,11 +187,16 @@ export function Header() {
             </span>
           </button>
 
-          <Button view="text" size={40} onClick={handleLogout} className="logout-button">
-            Выйти
+          <Button view="text" size={40} onClick={handleLogout} className="logout-button" disabled={loggingOut}>
+            {loggingOut ? 'Выходим…' : 'Выйти'}
           </Button>
         </div>
       </div>
+      {authError && (
+        <div className="auth-feedback auth-feedback--connection auth-feedback--header" role="alert">
+          {authError}
+        </div>
+      )}
     </header>
   );
 }

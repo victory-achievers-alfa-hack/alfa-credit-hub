@@ -4,10 +4,11 @@ import { Input } from '@alfalab/core-components/input';
 import { SelectDesktop as Select } from '@alfalab/core-components/select/desktop';
 import { Typography } from '@alfalab/core-components/typography';
 import { useNavigate, type NavigateFunction } from 'react-router-dom';
-import { NextActions } from '../components/NextActions';
+
 import { PageHeader } from '../components/PageHeader';
+import { RecommendationInfo } from '../components/RecommendationInfo';
 import { SegmentedControl } from '../components/SegmentedControl';
-import { StressPanel } from '../components/StressPanel';
+
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
 import { PURPOSE_LABELS } from '../constants';
@@ -17,20 +18,15 @@ import type {
   RecommendationAssessment,
   RecommendationGroup,
   RecommendationResponse,
-  RequestSummaryStatus,
+  RequestedProductCheck,
 } from '../types/credit';
 import { formatDateTime, formatMoney } from '../utils/format';
+import { getRankingNote, getRecommendationCounts, getRecommendationInfo, recommendationGroups } from '../utils/financing';
 
 const purposes: CreditPurpose[] = ['goods', 'equipment', 'cash_gap'];
 const APPLICATION_MIN_AMOUNT = 50_000;
 const APPLICATION_MAX_AMOUNT = 5_000_000;
-const recommendationGroups: RecommendationGroup[] = [
-  'requested',
-  'other_terms',
-  'reduced_amount',
-  'requires_action',
-  'unavailable',
-];
+
 const preferenceOptions = [
   { key: 'min_interest', content: 'Минимальная переплата' },
   { key: 'min_payment', content: 'Минимальный платёж' },
@@ -46,7 +42,7 @@ const groupCopy: Record<RecommendationGroup, { title: string; description: strin
   },
   reduced_amount: {
     title: 'Альтернативы с меньшей суммой',
-    description: 'Исходный запрос не изменён: ниже показаны отдельные доступные альтернативы.',
+    description: 'Сумма уменьшена; срок также может отличаться.',
   },
   requires_action: {
     title: 'Требуются проверка или действия',
@@ -57,13 +53,7 @@ const groupCopy: Record<RecommendationGroup, { title: string; description: strin
     description: 'Причины недоступности показаны по каждому продукту.',
   },
 };
-const summaryTitles: Record<RequestSummaryStatus, string> = {
-  exact_available: 'Точные условия предварительно проходят',
-  exact_review: 'Точные условия требуют рассмотрения',
-  alternatives_available: 'Доступны только изменённые условия',
-  information_required: 'Нужно уточнить сведения',
-  unavailable: 'Подходящих условий нет',
-};
+
 const assessmentCopy: Record<RecommendationAssessment, { label: string; tone: string }> = {
   eligible: { label: 'Предварительно проходит', tone: 'positive' },
   alternative: { label: 'Изменённые условия', tone: 'warning' },
@@ -77,7 +67,8 @@ type ButtonView = ComponentProps<typeof Button>['view'];
 
 function uniqueReasons(reasons: Recommendation['evaluation']['reasons']) {
   return reasons.filter(
-    (reason, index) => reasons.findIndex((candidate) => candidate.message === reason.message) === index,
+    (reason, index) => reason.code !== 'PREQUALIFIED'
+      && reasons.findIndex((candidate) => candidate.message === reason.message) === index,
   );
 }
 
@@ -89,21 +80,23 @@ function getAssessmentCopy(assessment: string) {
 function RecommendationCard({
   item,
   purpose,
+  requestedAmount,
   requestedTermMonths,
+  originalCheck,
   navigate,
 }: {
   item: Recommendation;
   purpose: CreditPurpose;
+  requestedAmount: number;
   requestedTermMonths: number;
+  originalCheck?: RequestedProductCheck;
   navigate: NavigateFunction;
 }) {
   const assessment = getAssessmentCopy(item.selectedEvaluation.assessment);
   const reasons = uniqueReasons(item.selectedEvaluation.reasons);
-  const originalReasons = uniqueReasons(item.evaluation.reasons).filter(
-    (reason) => !reasons.some((selectedReason) => selectedReason.message === reason.message),
-  );
+  const info = getRecommendationInfo(item, requestedAmount, requestedTermMonths, originalCheck);
   const canApply = item.group !== 'unavailable' && item.selectedEvaluation.policyPasses;
-  const changedTerms = item.termChanged || item.amountShortfall > 0;
+  const changedTerms = info.changes.length > 0;
   const isAlternative = item.group === 'other_terms' || item.group === 'reduced_amount';
   const buttonView: ButtonView = item.group === 'requested' && item.rankInGroup === 1 ? 'accent' : 'secondary';
   const buttonLabel = !canApply
@@ -124,11 +117,14 @@ function RecommendationCard({
     >
       <div className="recommendation-card__top">
         <span className={`product-accent product-accent--${item.product.accent}`}>{item.rankInGroup}</span>
-        <span className={`soft-tag soft-tag--${assessment.tone}`}>
-          {isAlternative && item.selectedEvaluation.assessment === 'eligible'
-            ? 'Альтернатива проходит'
-            : assessment.label}
-        </span>
+        <div className="recommendation-card__status">
+          <span className={`soft-tag soft-tag--${assessment.tone}`}>
+            {isAlternative && item.selectedEvaluation.assessment === 'eligible'
+              ? 'Альтернатива проходит'
+              : assessment.label}
+          </span>
+          {changedTerms && <RecommendationInfo productName={item.product.name} {...info} />}
+        </div>
       </div>
 
       <div>
@@ -136,23 +132,7 @@ function RecommendationCard({
         <p className="recommendation-card__description">{item.product.description}</p>
       </div>
 
-      {changedTerms ? (
-        <div className="offer-differences" aria-label="Отличия от исходного запроса">
-          {item.termChanged && (
-            <span>Срок изменён: <b>{requestedTermMonths} → {item.offer.termMonths} мес.</b></span>
-          )}
-          {item.amountShortfall > 0 && (
-            <span>Сумма уменьшена на <b>{formatMoney(item.amountShortfall)}</b></span>
-          )}
-          {originalReasons.length > 0 && (
-            <div className="offer-differences__reasons">
-              <strong>Почему исходные условия изменены</strong>
-              <ul>{originalReasons.map((reason) => <li key={reason.code}>{reason.message}</li>)}</ul>
-            </div>
-          )}
-          <small>Исходный запрос сохранён без автоматической подмены.</small>
-        </div>
-      ) : (
+      {!changedTerms && (
         <p className="exact-request-note">Сумма и срок точно соответствуют запросу.</p>
       )}
 
@@ -177,7 +157,7 @@ function RecommendationCard({
         </div>
       )}
 
-      {reasons.length > 0 && (
+      {!changedTerms && reasons.length > 0 && (
         <div className={`recommendation-reasons${item.selectedEvaluation.policyPasses ? '' : ' recommendation-reasons--warning'}`}>
           <strong>{item.selectedEvaluation.policyPasses ? 'Условия и ограничения' : 'Почему вариант не проходит'}</strong>
           <ul>{reasons.map((reason) => <li key={reason.code}>{reason.message}</li>)}</ul>
@@ -199,8 +179,6 @@ function RecommendationCard({
         </details>
       )}
 
-      <NextActions actions={item.selectedEvaluation.actions} />
-      {item.group !== 'unavailable' && <StressPanel stress={item.stress} />}
 
       <Button
         view={buttonView}
@@ -273,6 +251,7 @@ export function FinancingPage() {
   const recommendationCount = result
     ? recommendationGroups.reduce((count, group) => count + result.groups[group].length, 0)
     : 0;
+  const counts = result ? getRecommendationCounts(result) : [];
 
   return (
     <div className="page-shell">
@@ -390,39 +369,14 @@ export function FinancingPage() {
             <small>Рассчитано {formatDateTime(result.calculatedAt)}</small>
           </div>
 
-          <div className={`request-result request-result--${result.requestSummary.status}`}>
-            <div>
-              <strong>{summaryTitles[result.requestSummary.status]}</strong>
-              <p>{result.requestSummary.message}</p>
-              <small>Исходный запрос: {formatMoney(result.requestedAmount)} на {result.requestedTermMonths} мес. Он не меняется автоматически.</small>
-            </div>
-            <dl>
-              <div><dt>Точные варианты</dt><dd>{result.requestSummary.exactMatchCount}</dd></div>
-              <div><dt>На рассмотрение</dt><dd>{result.requestSummary.exactReviewCount}</dd></div>
-              <div><dt>Другой срок</dt><dd>{result.requestSummary.otherTermCount}</dd></div>
-              <div><dt>Меньшая сумма</dt><dd>{result.requestSummary.reducedAmountCount}</dd></div>
+          <div className="recommendation-summary">
+            <p>Запрос: <strong>{formatMoney(result.requestedAmount)} на {result.requestedTermMonths} мес.</strong> · Предварительная оценка, не одобрение банка.</p>
+            <dl aria-label="Итоги по всем рассмотренным вариантам">
+              {counts.filter(({ key, count }) => count > 0 || !['actions', 'unavailable'].includes(key)).map(({ key, label, count }) => (
+                <div key={key}><dt>{label}</dt><dd>{count}</dd></div>
+              ))}
             </dl>
           </div>
-
-          <details className="surface-card request-checks">
-            <summary>Проверки исходного запроса по продуктам</summary>
-            <div className="request-checks__list">
-              {result.requestChecks.map((check) => {
-                const copy = getAssessmentCopy(check.assessment);
-                return (
-                  <div className="request-check" key={check.productId}>
-                    <div>
-                      <strong>{check.productName}</strong>
-                      <span className={`soft-tag soft-tag--${copy.tone}`}>{copy.label}</span>
-                    </div>
-                    {check.reasons.length > 0
-                      ? <ul>{check.reasons.map((reason) => <li key={reason.code}>{reason.message}</li>)}</ul>
-                      : <p>Ограничения исходного запроса пройдены.</p>}
-                  </div>
-                );
-              })}
-            </div>
-          </details>
 
           {recommendationCount === 0 ? (
             <div className="surface-card empty-state empty-state--large">
@@ -442,13 +396,15 @@ export function FinancingPage() {
                   </div>
                   <span>{items.length}</span>
                 </div>
-                <p className="ranking-note">{items[0].rankingReason}</p>
+                <p className="ranking-note">{getRankingNote(items[0].rankingReason)}</p>
                 <div className="recommendation-grid">
                   {items.map((item) => (
                     <RecommendationCard
                       item={item}
                       purpose={purpose}
+                      requestedAmount={result.requestedAmount}
                       requestedTermMonths={result.requestedTermMonths}
+                      originalCheck={result.requestChecks.find((check) => check.productId === item.product.id)}
                       navigate={navigate}
                       key={`${item.group}-${item.product.id}-${item.offer.termMonths}-${item.offer.amount}`}
                     />

@@ -1,0 +1,124 @@
+# Формат: VSCode REST Client (расширение humao.rest-client), не JetBrains HTTP Client.
+# Send Request: выполняйте блоки сверху вниз по одному, каждый раз ожидайте HTTP 200.
+# Нужен отдельно запущенный локальный backend с seed_demo_data; коллекция его не запускает.
+# Все учётные записи, компании, документы и решения синтетические; не для production.
+# POST ниже сохраняют аудит/заявку и меняют её состояние в выбранной демо-БД.
+# Bearer явно выбирает роль и имеет приоритет над cookie, оставшейся от другого login.
+# Именованные ответы автоматически дают токены и ID; сначала выполните оба login и create.
+# Повтор create создаёт НОВУЮ заявку и заменяет applicationId в последующих запросах.
+# Переходы не идемпотентны: повтор/нарушение порядка -> 409 INVALID_STATUS_TRANSITION.
+# При 409 сначала прочитайте заявку (блок 11); для нового прохода повторите с create.
+# Если менялись данные компании/продукта, eligibility надо проверить заново (блок 5).
+# Сброс демо-данных намеренно отсутствует; существующие seed-заявки не используются.
+
+@baseURL = http://127.0.0.1:8000/api/v1
+@cafeToken = {{loginCafe.response.body.$.accessToken}}
+@bankToken = {{loginBank.response.body.$.accessToken}}
+@applicationId = {{createApplication.response.body.$.id}}
+
+### 1. Health: 200, description = Database connection is healthy
+# @name health
+GET {{baseURL}}/health
+
+### 2. Клиент cafe (Кофейня «Зёрна», companyId=cafe), НЕ client@demo.ru (city)
+# Ответ: accessToken, tokenType, user.role=client, user.companyId=cafe.
+# @name loginCafe
+POST {{baseURL}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cafe@demo.ru",
+  "password": "123456"
+}
+
+### 3. Банк: отдельный токен, user.role=bank
+# @name loginBank
+POST {{baseURL}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bank@demo.ru",
+  "password": "123456"
+}
+
+### 4. Каталог: массив продуктов; seed содержит id=working-capital
+# @name catalog
+GET {{baseURL}}/credit-products
+
+### 5. Рекомендации: точные условия 800000 / 24 / goods
+# Для неизменённого seed: companyId=cafe, requestSummary.status=exact_available.
+# В groups.requested найдите product.id=working-capital, offer.eligible=true.
+# evaluationId — ID сохранённого аудита, НЕ ID заявки и не поле тела create.
+# @name recommendations
+POST {{baseURL}}/recommendations
+Authorization: Bearer {{cafeToken}}
+Content-Type: application/json
+
+{
+  "purpose": "goods",
+  "amount": 800000,
+  "termMonths": 24,
+  "preference": "min_interest"
+}
+
+### 6. Создать проходящую заявку: 200, status=review; id захватывается автоматически
+# Конкретный productId из seed, не случайный первый элемент рекомендаций.
+# Проверено для cafe + working-capital + goods + 800000 + 24: eligible=true.
+# @name createApplication
+POST {{baseURL}}/applications
+Authorization: Bearer {{cafeToken}}
+Content-Type: application/json
+
+{
+  "productId": "working-capital",
+  "purpose": "goods",
+  "amount": 800000,
+  "termMonths": 24
+}
+
+### 7. Банк одобряет без изменения условий: review -> offer
+# Ответ: id той же заявки, status=offer, offer.id — ID предложения (не заявки).
+# @name approveApplication
+POST {{baseURL}}/bank/applications/{{applicationId}}/decision
+Authorization: Bearer {{bankToken}}
+Content-Type: application/json
+
+{
+  "kind": "approve"
+}
+
+### 8. Клиент принимает предложение: offer -> sign
+# @name acceptApplication
+POST {{baseURL}}/applications/{{applicationId}}/accept
+Authorization: Bearer {{cafeToken}}
+Content-Type: application/json
+
+{
+  "accepted": true
+}
+
+### 9. Клиент подписывает: sign -> ready; тело запроса не требуется
+# @name signApplication
+POST {{baseURL}}/applications/{{applicationId}}/sign
+Authorization: Bearer {{cafeToken}}
+
+### 10. Клиент получает синтетическую выдачу: ready -> disbursed; без тела
+# @name disburseApplication
+POST {{baseURL}}/applications/{{applicationId}}/disburse
+Authorization: Bearer {{cafeToken}}
+
+### 11. Детали и история: status=disbursed, events[].status/actor/createdAt
+# Отдельного /history нет; events: review -> offer -> sign -> ready -> disbursed.
+# @name applicationHistory
+GET {{baseURL}}/applications/{{applicationId}}
+Authorization: Bearer {{cafeToken}}
+
+### 12. Список заявок только компании cafe: items, total, limit, offset
+# @name clientApplications
+GET {{baseURL}}/applications?limit=20&offset=0
+Authorization: Bearer {{cafeToken}}
+
+### 13. Список заявок банка (все компании): items, total
+# @name bankApplications
+GET {{baseURL}}/bank/applications?limit=20&offset=0
+Authorization: Bearer {{bankToken}}

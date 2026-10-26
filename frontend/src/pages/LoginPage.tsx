@@ -5,16 +5,18 @@ import { Typography } from '@alfalab/core-components/typography';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
 import { DEMO_USERS } from '../constants';
+import type { AuthErrorKind } from '../utils/authErrors';
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 export function LoginPage() {
-  const { currentUser, login, loginAs } = useAuth();
+  const { currentUser, login, loginAs, authError: sessionError } = useAuth();
   const location = useLocation();
   const [email, setEmail] = useState('client@demo.ru');
   const [password, setPassword] = useState('123456');
   const [emailError, setEmailError] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authErrorKind, setAuthErrorKind] = useState<AuthErrorKind>('other');
   const [submitting, setSubmitting] = useState(false);
 
   if (currentUser) {
@@ -32,6 +34,8 @@ export function LoginPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting) return;
+    setAuthError('');
 
     if (!EMAIL_PATTERN.test(email)) {
       setEmailError('Введите корректный email латиницей');
@@ -43,6 +47,7 @@ export function LoginPage() {
     setSubmitting(false);
     if (!result.success) {
       setAuthError(result.message ?? 'Не удалось войти');
+      setAuthErrorKind(result.errorKind ?? 'other');
       return;
     }
 
@@ -55,7 +60,10 @@ export function LoginPage() {
     setAuthError('');
     const result = await loginAs(userId);
     setSubmitting(false);
-    if (!result.success) setAuthError(result.message ?? 'Не удалось войти');
+    if (!result.success) {
+      setAuthError(result.message ?? 'Не удалось войти');
+      setAuthErrorKind(result.errorKind ?? 'other');
+    }
   };
 
   return (
@@ -66,13 +74,15 @@ export function LoginPage() {
           <span>АЛЬФА / ПОТОК</span>
         </div>
         <div className="login-story__content">
-          <span className="login-story__chip">Умный кредитный кабинет</span>
-          <Typography.Title tag="h1" view="xlarge" weight="bold" className="login-story__title">
-            Финансирование бизнеса без лишних шагов
-          </Typography.Title>
-          <Typography.Text tag="p" view="primary-large" className="login-story__text">
-            Банк уже знает компанию, подбирает подходящие условия и прозрачно проводит заявку до выдачи.
-          </Typography.Text>
+          <div className="login-story__intro">
+            <span className="login-story__chip">Умный кредитный кабинет</span>
+            <Typography.Title tag="h1" view="xlarge" weight="bold" className="login-story__title">
+              Финансирование бизнеса без лишних шагов
+            </Typography.Title>
+            <Typography.Text tag="p" view="primary-large" className="login-story__text">
+              Банк уже знает компанию, подбирает подходящие условия и прозрачно проводит заявку до выдачи.
+            </Typography.Text>
+          </div>
           <div className="login-story__steps">
             <span><b>01</b> Выберите цель</span>
             <span><b>02</b> Получите расчёт</span>
@@ -124,11 +134,19 @@ export function LoginPage() {
               value={password}
               autoComplete="current-password"
               onChange={(_, payload) => { setPassword(payload.value); setAuthError(''); }}
-              error={authError || false}
+              error={Boolean(authError) && authErrorKind === 'credentials'}
             />
             <Button type="submit" view="accent" size={56} block disabled={submitting}>
               {submitting ? 'Входим…' : 'Войти'}
             </Button>
+            {(authError || sessionError) && (
+              <div
+                className={`auth-feedback${!authError || authErrorKind === 'connection' ? ' auth-feedback--connection' : ''}`}
+                role="alert"
+              >
+                {authError || sessionError}
+              </div>
+            )}
           </form>
 
           <div className="demo-divider"><span>Быстрый вход</span></div>

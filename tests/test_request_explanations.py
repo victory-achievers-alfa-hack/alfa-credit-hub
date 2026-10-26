@@ -63,7 +63,13 @@ def test_summary_does_not_claim_available_alternatives_when_blocked(company, sta
 def test_empty_catalog_and_financial_constraints():
     result = recommend(products=[])
     assert result["requestSummary"]["status"] == "unavailable"
+    assert {key: value for key, value in result["requestSummary"].items()
+            if key.endswith("Count")} == dict(exactMatchCount=0, exactReviewCount=0,
+                                             otherTermCount=0, reducedAmountCount=0)
     assert result["requestChecks"] == []
+    assert result["groups"] == {key: [] for key in (
+        "requested", "other_terms", "reduced_amount", "requires_action", "unavailable")}
+    assert (result["requestedAmount"], result["requestedTermMonths"]) == (800000, 24)
     constraints = assess(CITY)["constraints"]
     assert constraints["maxNewMonthlyPayment"] == 8000
     assert constraints["monthlyCashFlow"] == 160000
@@ -72,6 +78,67 @@ def test_empty_catalog_and_financial_constraints():
     bad = assess(CITY | dict(monthlyExpenses=1000000))
     assert bad["constraints"]["maxNewMonthlyPayment"] == 0
     assert bad["constraints"]["monthlyCoverageShortfall"] > 0
+
+
+@pytest.mark.parametrize(
+    "company,term,group,offer_amount,status,counts",
+    [
+        pytest.param(CAFE, 24, "requested", 800000, "exact_available", (1, 0, 0, 0), id="exact"),
+        pytest.param(CAFE, 36, "other_terms", 800000, "alternatives_available", (0, 0, 1, 0), id="term-only"),
+        pytest.param(CITY, 24, "reduced_amount", 150000, "alternatives_available", (0, 0, 0, 1), id="amount-only"),
+        pytest.param(CITY, 36, "reduced_amount", 200000, "alternatives_available", (0, 0, 0, 1), id="amount-and-term"),
+        pytest.param(CITY, 12, "unavailable", 800000, "unavailable", (0, 0, 0, 0), id="no-affordable-amount"),
+    ],
+)
+def test_request_classification_and_summary(company, term, group, offer_amount, status, counts):
+    result = recommend(company, products=[PRODUCT | {"terms": [term]}])
+    assert (result["requestedAmount"], result["requestedTermMonths"]) == (800000, 24)
+    assert {key: len(items) for key, items in result["groups"].items()} == {
+        key: int(key == group) for key in result["groups"]}
+    item, = result["groups"][group]
+    assert item["group"] == group
+    assert (item["offer"]["amount"], item["offer"]["termMonths"]) == (offer_amount, term)
+    assert item["termChanged"] == (term != 24)
+    assert item["amountShortfall"] == 800000 - offer_amount
+    assert item["evaluation"]["amount"] == 800000
+    assert item["evaluation"]["termMonths"] == term
+    selected = item["selectedEvaluation"]
+    assert (selected["amount"], selected["termMonths"]) == (offer_amount, term)
+    assert selected["policyPasses"] == (group != "unavailable")
+    if offer_amount < 800000:
+        assert not item["evaluation"]["policyPasses"]
+        assert item["evaluation"]["alternative"]["amount"] == offer_amount
+        assert selected["alternative"] is None
+        assert selected["eligible"] and item["offer"]["eligible"]
+    check, = result["requestChecks"]
+    if term != 24:
+        assert not check["policyPasses"]
+        assert any(reason["code"] == "TERM_UNSUPPORTED" for reason in check["reasons"])
+    summary = result["requestSummary"]
+    assert summary["status"] == status
+    assert tuple(summary[key] for key in (
+        "exactMatchCount", "exactReviewCount", "otherTermCount", "reducedAmountCount")) == counts
+
+
+@pytest.mark.parametrize(
+    "amount,status,counts",
+    [(100000, "exact_review", (0, 1, 2, 0)),
+     (800000, "alternatives_available", (0, 0, 1, 2))],
+)
+def test_summary_counts_only_passing_review_conditions(amount, status, counts):
+    result = recommend(MEDIUM, amount=amount)
+    assert all(not result["groups"][key] for key in ("requested", "other_terms", "reduced_amount"))
+    items = result["groups"]["requires_action"]
+    assert len(items) == 3
+    assert all(item["selectedEvaluation"]["policyPasses"] for item in items)
+    assert all(item["offer"]["reviewRequired"] and not item["offer"]["eligible"] for item in items)
+    summary = result["requestSummary"]
+    assert summary["status"] == status
+    assert tuple(summary[key] for key in (
+        "exactMatchCount", "exactReviewCount", "otherTermCount", "reducedAmountCount")) == counts
+    if amount == 800000:
+        assert not result["requestChecks"][0]["policyPasses"]
+        assert any(item["termChanged"] and item["offer"]["amount"] < amount for item in items)
 
 
 def test_rounded_coverage_never_overrules_exact_money_check():

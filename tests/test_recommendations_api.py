@@ -17,6 +17,7 @@ from test_financing import CAFE, PRODUCT, AT
 class FakeStore:
     def __init__(self):
         self.company = deepcopy(CAFE)
+        self.products = deepcopy([PRODUCT])
         self.records = {}
         self.missing = False
         self.fail_audit = False
@@ -24,7 +25,7 @@ class FakeStore:
     def load_authorized_snapshot(self, actor, company_id):
         if self.missing:
             return None
-        return AuthorizedSnapshot(company_id, "profile-1", "catalog-1", self.company, [PRODUCT])
+        return AuthorizedSnapshot(company_id, "profile-1", "catalog-1", self.company, self.products)
 
     def save_audit(self, key, record):
         if self.fail_audit:
@@ -68,6 +69,8 @@ class RecommendationApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         result = response.json()
         self.assertEqual(result["companyId"], "c1")
+        self.assertEqual((result["requestedAmount"], result["requestedTermMonths"]), (800000, 24))
+        self.assertEqual(result["groups"]["requested"][0]["offer"]["amount"], 800000)
         record = self.store.records[result["evaluationId"]]
         self.assertEqual(record["result"], result)
         self.assertEqual(record["inputs"]["company"], CAFE)
@@ -91,10 +94,28 @@ class RecommendationApiTests(unittest.TestCase):
     def test_reject_client_financial_overrides_and_invalid_input(self):
         for changes in ({"score": 100}, {"monthlyRevenue": 99999999},
                         {"amount": True}, {"amount": 0}, {"termMonths": True},
-                        {"amount": "1.001"}, {"preference": "magic"}):
+                        {"amount": "1.001"}, {"amount": "NaN"}, {"amount": "Infinity"},
+                        {"amount": 1000000000001}, {"termMonths": 24.0},
+                        {"termMonths": "24"}, {"termMonths": 0}, {"termMonths": 121},
+                        {"purpose": "unknown"}, {"preference": "magic"}):
             with self.subTest(changes=changes):
                 self.assertEqual(self.post(**changes).status_code, 422)
         self.assertFalse(self.store.records)
+
+    def test_empty_catalog_returns_empty_groups_and_zero_counts(self):
+        self.store.products.clear()
+        response = self.post()
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["groups"], {key: [] for key in (
+            "requested", "other_terms", "reduced_amount", "requires_action", "unavailable")})
+        self.assertEqual(result["requestChecks"], [])
+        self.assertEqual(result["requestSummary"]["status"], "unavailable")
+        self.assertEqual({key: value for key, value in result["requestSummary"].items()
+                          if key.endswith("Count")},
+                         dict(exactMatchCount=0, exactReviewCount=0, otherTermCount=0, reducedAmountCount=0))
+        self.assertEqual((result["requestedAmount"], result["requestedTermMonths"]), (800000, 24))
+        self.assertEqual(self.store.records[result["evaluationId"]]["result"], result)
 
     def test_invalid_source_is_not_a_rejection(self):
         self.store.company["monthlyRevenue"] = None

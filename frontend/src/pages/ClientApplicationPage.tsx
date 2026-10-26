@@ -1,5 +1,4 @@
-import { StressPanel } from '../components/StressPanel';
-import { NextActions } from '../components/NextActions';
+
 import { useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Checkbox } from '@alfalab/core-components/checkbox';
@@ -226,8 +225,7 @@ export function ClientApplicationPage() {
               Оценка на момент подачи рассчитана {formatDateTime(application.scoring.calculatedAt)}
             </p>
           )}
-          <NextActions actions={application.actions} />
-          <StressPanel stress={application.stress} snapshot />
+
           <div className="check-list">
             {application.checks.map((check) => (
               <div className="check-row" key={check.id}>

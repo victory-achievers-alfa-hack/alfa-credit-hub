@@ -1,4 +1,4 @@
-import { StressPanel } from '../components/StressPanel';
+
 import { NextActions } from '../components/NextActions';
 import { useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
@@ -127,7 +127,7 @@ export function BankApplicationPage() {
                   </small>
                 )}
                 <NextActions actions={application.actions} />
-                <StressPanel stress={application.stress} snapshot />
+
                 {company.scoringScore >= 50 && company.scoringScore < 70 && <p>Текущий профиль требует рассмотрения: покрытие от 1,5×, сумма до 50% месячной выручки и обязательное обоснование сотрудника. Ограничения проверяет сервер.</p>}
               </div>
             </div>
