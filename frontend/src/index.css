@@ -313,9 +313,7 @@ a:focus-visible {
   border-radius: 9px;
   background: var(--alfa-red);
   color: #fff;
-  font-size: 22px;
-  font-weight: 900;
-  font-style: italic;
+  flex-shrink: 0;
 }
 
 .brand__mark--large {

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@alfalab/core-components": "^50.37.0",
+    "@alfalab/icons-logotype": "^2.37.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^6.30.6"

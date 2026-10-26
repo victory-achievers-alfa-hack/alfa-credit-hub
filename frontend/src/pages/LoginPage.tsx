@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Input } from '@alfalab/core-components/input';
 import { Typography } from '@alfalab/core-components/typography';
+import { AlfaBankLIcon } from '@alfalab/icons-logotype/AlfaBankLIcon';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
 import { DEMO_USERS } from '../constants';
@@ -70,7 +71,9 @@ export function LoginPage() {
     <main className="login-page">
       <section className="login-story">
         <div className="login-story__brand">
-          <span className="brand__mark brand__mark--large">A</span>
+          <span className="brand__mark brand__mark--large" aria-hidden="true">
+            <AlfaBankLIcon width={20} height={30} />
+          </span>
           <span>АЛЬФА / ПОТОК</span>
         </div>
         <div className="login-story__content">

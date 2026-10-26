@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@alfalab/core-components/button';
 import { Typography } from '@alfalab/core-components/typography';
+import { AlfaBankLIcon } from '@alfalab/icons-logotype/AlfaBankLIcon';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AutoContext';
 import { useCredit } from '../context/CreditContext';
@@ -85,7 +86,9 @@ export function Header() {
           onClick={() => navigate(homePath)}
           aria-label="На главную"
         >
-          <span className="brand__mark">A</span>
+          <span className="brand__mark" aria-hidden="true">
+            <AlfaBankLIcon width={16} height={24} />
+          </span>
           <span className="brand__copy">
             <strong>АЛЬФА / ПОТОК</strong>
             <small>{currentUser.role === 'bank' ? 'Рабочее место банка' : 'Кредитный кабинет'}</small>

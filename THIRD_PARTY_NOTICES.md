@@ -35,7 +35,7 @@
 | [React](https://github.com/react/react) | UI | `^19.3.1` | `19.3.1` | MIT |
 | [React DOM](https://github.com/react/react) | Отрисовка UI | `^19.3.1` | `19.3.1` | MIT |
 | [react-router-dom](https://github.com/remix-run/react-router) | Маршрутизация | `^6.30.6` | `6.30.6` | MIT |
-| [@alfalab/icons-logotype](https://github.com/core-ds/ui-primitives/tree/master/packages/logotype) | Источник знака для favicon | Транзитивно | `2.37.3` | MIT по метаданным |
+| [@alfalab/icons-logotype](https://github.com/core-ds/ui-primitives/tree/master/packages/logotype) | Знак в навигации, на входе и favicon | `^2.37.3` | `2.37.3` | MIT по метаданным |
 | [@alfalab/icons-glyph](https://github.com/core-ds/ui-primitives/tree/master/packages/glyph) | Набор пиктограмм, зависимость Alfa UI | Транзитивно | `2.293.3` | MIT по метаданным |
 | [TypeScript](https://github.com/microsoft/TypeScript) | Проверка типов и компиляция | `~6.0.3` | `6.0.3` | Apache-2.0 |
 | [Vite](https://github.com/vitejs/vite) | Dev/build-инструмент | `^8.3.4` | `8.3.5` | MIT для ядра |
@@ -51,9 +51,9 @@
 
 Frontend-тесты используют встроенный test runner Node.js, указанный в скрипте `test`. Версия `@types/node` — версия деклараций типов, не версия Node.js. Для backend в манифесте требуется Python `>=3.12`.
 
-## Официальный знак в favicon
+## Официальный знак в интерфейсе и favicon
 
-В `frontend/public/favicon.svg` используется **официальный `AlfaBankLIcon` из `@alfalab/icons-logotype` 2.37.3**, сохранённый как статический SVG (static SVG). Контур `path` сверен с установленным компонентом и совпадает. Для favicon изменены холст, масштаб, позиционирование и цвет, добавлен заголовок; это не самостоятельно нарисованный знак. Пакет приходит транзитивно через `@alfalab/core-components-bank-card`, а не объявлен прямой зависимостью frontend.
+В `frontend/public/favicon.svg` используется **официальный `AlfaBankLIcon` из `@alfalab/icons-logotype` 2.37.3**, сохранённый как статический SVG (static SVG). Контур `path` сверен с установленным компонентом и совпадает. Для favicon изменены холст, масштаб, позиционирование и цвет, добавлен заголовок; это не самостоятельно нарисованный знак. Этот же SVG-компонент используется в навигации и на странице входа вместо текстовой буквы. Пакет объявлен прямой зависимостью frontend; ранее он уже поставлялся транзитивно через `@alfalab/core-components-bank-card`.
 
 ### Товарные знаки и отсутствие заявления об аффилированности
 
